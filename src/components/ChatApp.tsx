@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send, Sparkles,
-  MessageSquare, Settings, MoreVertical, Radio, X, Square,
+  MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { XLogo } from "@/components/XLogo";
 
@@ -25,8 +26,7 @@ type Chat = { id: string; title: string; messages: Msg[] };
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 const LANGUAGES = [
-  "English","Hindi","Spanish","French","German","Japanese","Chinese","Arabic",
-  "Portuguese","Russian","Italian","Korean","Bengali","Urdu","Turkish",
+  "English","Hindi","Spanish","French","German","Japanese","Arabic",
 ];
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -45,6 +45,7 @@ export default function ChatApp() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
+  const camRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -194,13 +195,13 @@ export default function ChatApp() {
     r.start();
   };
 
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>, kind: "file" | "image") => {
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>, kind: "file" | "image" | "camera") => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 5 * 1024 * 1024) { toast.error("Max 5 MB"); return; }
     const reader = new FileReader();
     reader.onload = () => {
-      setAttachments(a => [...a, { name: f.name, type: f.type || (kind === "image" ? "image/png" : "application/octet-stream"), data: reader.result as string }]);
+      setAttachments(a => [...a, { name: f.name, type: f.type || (kind === "file" ? "application/octet-stream" : "image/png"), data: reader.result as string }]);
     };
     reader.readAsDataURL(f);
     e.target.value = "";
@@ -346,12 +347,33 @@ export default function ChatApp() {
               />
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-0.5">
-                  <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach file" onClick={() => fileRef.current?.click()}>
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach image" onClick={() => imgRef.current?.click()}>
-                    <ImageIcon className="h-4 w-4" />
-                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach">
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-44 p-1">
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent"
+                        onClick={() => fileRef.current?.click()}
+                      >
+                        <FileUp className="h-4 w-4" /> Files
+                      </button>
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent"
+                        onClick={() => imgRef.current?.click()}
+                      >
+                        <ImageIcon className="h-4 w-4" /> Photo / Gallery
+                      </button>
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent"
+                        onClick={() => camRef.current?.click()}
+                      >
+                        <Camera className="h-4 w-4" /> Camera
+                      </button>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     size="icon"
                     variant={useWebSearch ? "default" : "ghost"}
@@ -387,6 +409,7 @@ export default function ChatApp() {
 
         <input ref={fileRef} type="file" hidden onChange={e => onFile(e, "file")} />
         <input ref={imgRef} type="file" accept="image/*" hidden onChange={e => onFile(e, "image")} />
+        <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={e => onFile(e, "camera")} />
       </main>
 
       {/* Credits dialog */}
@@ -430,13 +453,29 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
+  const [camOn, setCamOn] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<any>(null);
 
   const langCode = (l: string) => ({
-    English: "en-US", Hindi: "hi-IN", Spanish: "es-ES", French: "fr-FR", German: "de-DE",
-    Japanese: "ja-JP", Chinese: "zh-CN", Arabic: "ar-SA", Portuguese: "pt-BR", Russian: "ru-RU",
-    Italian: "it-IT", Korean: "ko-KR", Bengali: "bn-IN", Urdu: "ur-PK", Turkish: "tr-TR",
+    English: "en-US", Hindi: "hi-IN", Spanish: "es-ES", French: "fr-FR",
+    German: "de-DE", Japanese: "ja-JP", Arabic: "ar-SA",
   } as Record<string, string>)[l] || "en-US";
+
+  const startCamera = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      streamRef.current = s;
+      if (videoRef.current) { videoRef.current.srcObject = s; await videoRef.current.play(); }
+      setCamOn(true);
+    } catch { toast.error("Camera permission denied"); }
+  };
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setCamOn(false);
+  };
 
   const speak = (text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -510,6 +549,7 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   useEffect(() => {
     if (!open) {
       recRef.current?.stop?.();
+      stopCamera();
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
@@ -525,20 +565,32 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
           </DialogTitle>
           <DialogDescription>Speak naturally — language: {language}</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col items-center gap-6 py-6">
+        <div className="flex flex-col items-center gap-4 py-4">
+          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-border flex items-center justify-center">
+            <video ref={videoRef} playsInline muted className={`w-full h-full object-cover ${camOn ? "" : "hidden"}`} />
+            {!camOn && <span className="text-xs text-muted-foreground">Camera off</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" onClick={camOn ? stopCamera : startCamera} title="Camera">
+              {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+            </Button>
           <button
             onClick={listening ? stop : start}
-            className={`relative h-32 w-32 rounded-full flex items-center justify-center transition ${
+              className={`relative h-20 w-20 rounded-full flex items-center justify-center transition ${
               listening ? "animate-pulse" : ""
             }`}
             style={{ background: "var(--gradient-copper)" }}
           >
-            <Mic className="h-12 w-12 text-background" />
+              <Mic className="h-8 w-8 text-background" />
             {listening && (
               <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-ping" />
             )}
           </button>
-          <p className="text-sm text-muted-foreground">{listening ? "Listening…" : "Tap to talk"}</p>
+            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" onClick={onClose} title="End">
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">{listening ? "Listening…" : "Tap mic to talk"}</p>
           {transcript && <div className="text-sm bg-muted p-3 rounded-md w-full"><b>You:</b> {transcript}</div>}
           {response && <div className="text-sm bg-card border border-border p-3 rounded-md w-full"><b>X COPPER:</b> {response}</div>}
         </div>
