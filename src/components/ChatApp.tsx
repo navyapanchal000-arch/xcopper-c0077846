@@ -453,13 +453,29 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
+  const [camOn, setCamOn] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<any>(null);
 
   const langCode = (l: string) => ({
-    English: "en-US", Hindi: "hi-IN", Spanish: "es-ES", French: "fr-FR", German: "de-DE",
-    Japanese: "ja-JP", Chinese: "zh-CN", Arabic: "ar-SA", Portuguese: "pt-BR", Russian: "ru-RU",
-    Italian: "it-IT", Korean: "ko-KR", Bengali: "bn-IN", Urdu: "ur-PK", Turkish: "tr-TR",
+    English: "en-US", Hindi: "hi-IN", Spanish: "es-ES", French: "fr-FR",
+    German: "de-DE", Japanese: "ja-JP", Arabic: "ar-SA",
   } as Record<string, string>)[l] || "en-US";
+
+  const startCamera = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      streamRef.current = s;
+      if (videoRef.current) { videoRef.current.srcObject = s; await videoRef.current.play(); }
+      setCamOn(true);
+    } catch { toast.error("Camera permission denied"); }
+  };
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setCamOn(false);
+  };
 
   const speak = (text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -533,6 +549,7 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   useEffect(() => {
     if (!open) {
       recRef.current?.stop?.();
+      stopCamera();
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
@@ -548,20 +565,32 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
           </DialogTitle>
           <DialogDescription>Speak naturally — language: {language}</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col items-center gap-6 py-6">
+        <div className="flex flex-col items-center gap-4 py-4">
+          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-border flex items-center justify-center">
+            <video ref={videoRef} playsInline muted className={`w-full h-full object-cover ${camOn ? "" : "hidden"}`} />
+            {!camOn && <span className="text-xs text-muted-foreground">Camera off</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" onClick={camOn ? stopCamera : startCamera} title="Camera">
+              {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+            </Button>
           <button
             onClick={listening ? stop : start}
-            className={`relative h-32 w-32 rounded-full flex items-center justify-center transition ${
+              className={`relative h-20 w-20 rounded-full flex items-center justify-center transition ${
               listening ? "animate-pulse" : ""
             }`}
             style={{ background: "var(--gradient-copper)" }}
           >
-            <Mic className="h-12 w-12 text-background" />
+              <Mic className="h-8 w-8 text-background" />
             {listening && (
               <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-ping" />
             )}
           </button>
-          <p className="text-sm text-muted-foreground">{listening ? "Listening…" : "Tap to talk"}</p>
+            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" onClick={onClose} title="End">
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">{listening ? "Listening…" : "Tap mic to talk"}</p>
           {transcript && <div className="text-sm bg-muted p-3 rounded-md w-full"><b>You:</b> {transcript}</div>}
           {response && <div className="text-sm bg-card border border-border p-3 rounded-md w-full"><b>X COPPER:</b> {response}</div>}
         </div>
