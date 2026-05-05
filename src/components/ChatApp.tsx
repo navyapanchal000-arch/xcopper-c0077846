@@ -309,7 +309,7 @@ export default function ChatApp() {
                         ))}
                       </div>
                     )}
-                    <div className="prose prose-sm prose-invert max-w-none prose-pre:bg-muted prose-pre:text-foreground prose-code:text-primary">
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                       <ReactMarkdown>{m.content || (isLoading && i === active.messages.length - 1 ? "▍" : "")}</ReactMarkdown>
                     </div>
                   </div>
