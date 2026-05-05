@@ -441,9 +441,10 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   } as Record<string, string>)[l] || "en-US";
 
   const speak = (text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const u = new SpeechSynthesisUtterance(text);
     u.lang = langCode(language);
-    speechSynthesis.speak(u);
+    window.speechSynthesis.speak(u);
   };
 
   const start = () => {
@@ -508,7 +509,14 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
 
   const stop = () => recRef.current?.stop();
 
-  useEffect(() => { if (!open) { recRef.current?.stop?.(); speechSynthesis.cancel(); } }, [open]);
+  useEffect(() => {
+    if (!open) {
+      recRef.current?.stop?.();
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
