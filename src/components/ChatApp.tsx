@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send, Sparkles,
-  MessageSquare, Settings, MoreVertical, Radio, X, Square,
+  MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { XLogo } from "@/components/XLogo";
 
@@ -25,8 +26,7 @@ type Chat = { id: string; title: string; messages: Msg[] };
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 const LANGUAGES = [
-  "English","Hindi","Spanish","French","German","Japanese","Chinese","Arabic",
-  "Portuguese","Russian","Italian","Korean","Bengali","Urdu","Turkish",
+  "English","Hindi","Spanish","French","German","Japanese","Arabic",
 ];
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -45,6 +45,7 @@ export default function ChatApp() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
+  const camRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -194,13 +195,13 @@ export default function ChatApp() {
     r.start();
   };
 
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>, kind: "file" | "image") => {
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>, kind: "file" | "image" | "camera") => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 5 * 1024 * 1024) { toast.error("Max 5 MB"); return; }
     const reader = new FileReader();
     reader.onload = () => {
-      setAttachments(a => [...a, { name: f.name, type: f.type || (kind === "image" ? "image/png" : "application/octet-stream"), data: reader.result as string }]);
+      setAttachments(a => [...a, { name: f.name, type: f.type || (kind === "file" ? "application/octet-stream" : "image/png"), data: reader.result as string }]);
     };
     reader.readAsDataURL(f);
     e.target.value = "";
@@ -346,12 +347,33 @@ export default function ChatApp() {
               />
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-0.5">
-                  <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach file" onClick={() => fileRef.current?.click()}>
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach image" onClick={() => imgRef.current?.click()}>
-                    <ImageIcon className="h-4 w-4" />
-                  </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach">
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-44 p-1">
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent"
+                        onClick={() => fileRef.current?.click()}
+                      >
+                        <FileUp className="h-4 w-4" /> Files
+                      </button>
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent"
+                        onClick={() => imgRef.current?.click()}
+                      >
+                        <ImageIcon className="h-4 w-4" /> Photo / Gallery
+                      </button>
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent"
+                        onClick={() => camRef.current?.click()}
+                      >
+                        <Camera className="h-4 w-4" /> Camera
+                      </button>
+                    </PopoverContent>
+                  </Popover>
                   <Button
                     size="icon"
                     variant={useWebSearch ? "default" : "ghost"}
@@ -387,6 +409,7 @@ export default function ChatApp() {
 
         <input ref={fileRef} type="file" hidden onChange={e => onFile(e, "file")} />
         <input ref={imgRef} type="file" accept="image/*" hidden onChange={e => onFile(e, "image")} />
+        <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={e => onFile(e, "camera")} />
       </main>
 
       {/* Credits dialog */}
