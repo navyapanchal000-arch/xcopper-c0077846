@@ -240,13 +240,10 @@ export default function ChatApp() {
       <main className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
         <header className="flex items-center justify-between px-4 h-14 border-b border-border">
-          <div className="flex items-center gap-2 font-semibold">
-            <span className="text-transparent bg-clip-text" style={{ backgroundImage: "var(--gradient-copper)" }}>X COPPER</span>
+          <div className="flex items-center gap-2 font-semibold whitespace-nowrap">
+            <span className="text-transparent bg-clip-text whitespace-nowrap" style={{ backgroundImage: "var(--gradient-copper)" }}>X COPPER</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="gap-2 text-primary hover:text-primary" onClick={() => setLiveOpen(true)}>
-              <Radio className="h-4 w-4" /> Live X COPPER
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
@@ -267,8 +264,8 @@ export default function ChatApp() {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="rounded-full ring-2 ring-primary/30 hover:ring-primary transition">
-                  <XLogo className="h-9 w-9" />
+                <button className="rounded-full overflow-hidden ring-2 ring-primary/40 hover:ring-primary transition h-9 w-9 flex items-center justify-center bg-card">
+                  <XLogo className="h-7 w-7 object-contain" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -348,23 +345,24 @@ export default function ChatApp() {
                 className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40"
               />
               <div className="flex items-center justify-between mt-1">
-                <div className="flex items-center gap-1 flex-wrap">
-                  <Button size="sm" variant="ghost" className="h-8 gap-1.5" onClick={() => fileRef.current?.click()}>
-                    <Paperclip className="h-4 w-4" /> Attach
+                <div className="flex items-center gap-0.5">
+                  <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach file" onClick={() => fileRef.current?.click()}>
+                    <Paperclip className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-8 gap-1.5" onClick={() => imgRef.current?.click()}>
-                    <ImageIcon className="h-4 w-4" /> Image
+                  <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach image" onClick={() => imgRef.current?.click()}>
+                    <ImageIcon className="h-4 w-4" />
                   </Button>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant={useWebSearch ? "default" : "ghost"}
-                    className={`h-8 gap-1.5 ${useWebSearch ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
+                    title="Search the web"
+                    className={`h-9 w-9 ${useWebSearch ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
                     onClick={() => setUseWebSearch(v => !v)}
                   >
-                    <Globe className="h-4 w-4" /> Search the web
+                    <Globe className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-8 gap-1.5">
-                    <Sparkles className="h-4 w-4" /> Reason
+                  <Button size="icon" variant="ghost" className="h-9 w-9 text-primary" title="Live X COPPER" onClick={() => setLiveOpen(true)}>
+                    <Radio className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="flex items-center gap-1">
