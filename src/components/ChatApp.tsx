@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
-  History, LogIn, LogOut, RefreshCw, Trash2,
+  History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,11 +15,9 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { XLogo } from "@/components/XLogo";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +29,12 @@ type Chat = { id: string; title: string; messages: Msg[] };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
-const LANGUAGES = ["English","Hindi","Spanish","French","German","Japanese","Arabic"];
+const LANGUAGES = [
+  "English","Hindi","Spanish","French","German","Japanese","Arabic",
+  "Chinese","Portuguese","Russian","Italian","Korean","Bengali","Turkish","Dutch","Urdu","Tamil",
+];
+
+const PLACEHOLDERS = ["Ask X COPPER", "MADE BY NAVYA PANCHAL"];
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -48,6 +51,12 @@ export default function ChatApp() {
   const [language, setLanguage] = useState("English");
   const [liveOpen, setLiveOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
@@ -299,6 +308,28 @@ export default function ChatApp() {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" title="Account">
+                  <UserIcon className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {user ? (
+                  <>
+                    <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={async () => { await supabase.auth.signOut(); toast.success("Signed out"); }}>
+                      <LogOut className="h-4 w-4 mr-2" /> Sign out
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem onClick={() => setShowAuth(true)}>
+                    <LogIn className="h-4 w-4 mr-2" /> Sign in / Sign up
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button className="rounded-full overflow-hidden ring-2 ring-primary/40 hover:ring-primary transition h-9 w-9 flex items-center justify-center bg-card">
                   <XLogo className="h-7 w-7 object-contain" />
                 </button>
@@ -371,7 +402,7 @@ export default function ChatApp() {
                     if (!isLoading) sendMessage(input);
                   }
                 }}
-                placeholder="Ask chat X"
+                placeholder={PLACEHOLDERS[placeholderIdx]}
                 rows={1}
                 className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40"
               />
@@ -443,20 +474,14 @@ export default function ChatApp() {
             <DialogDescription>Configure your X COPPER experience.</DialogDescription>
           </DialogHeader>
           <Tabs defaultValue="general" className="pt-2">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="history"><History className="h-3.5 w-3.5 mr-1" />History</TabsTrigger>
-              <TabsTrigger value="account">Account</TabsTrigger>
             </TabsList>
             <TabsContent value="general" className="space-y-4 pt-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Language for live mode</label>
-                <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <LanguagePicker value={language} onChange={setLanguage} />
               </div>
             </TabsContent>
             <TabsContent value="history" className="pt-4">
@@ -489,23 +514,6 @@ export default function ChatApp() {
                 </div>
               )}
             </TabsContent>
-            <TabsContent value="account" className="pt-4 space-y-3">
-              {user ? (
-                <div className="space-y-3">
-                  <div className="text-sm">
-                    <p className="text-muted-foreground">Signed in as</p>
-                    <p className="font-medium">{user.email}</p>
-                  </div>
-                  <Button variant="outline" className="w-full" onClick={async () => { await supabase.auth.signOut(); toast.success("Signed out"); }}>
-                    <LogOut className="h-4 w-4 mr-2" /> Sign out
-                  </Button>
-                </div>
-              ) : (
-                <Button className="w-full" onClick={() => { setShowSettings(false); setShowAuth(true); }}>
-                  <LogIn className="h-4 w-4 mr-2" /> Sign in / Sign up
-                </Button>
-              )}
-            </TabsContent>
           </Tabs>
         </DialogContent>
       </Dialog>
@@ -514,6 +522,36 @@ export default function ChatApp() {
 
       <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} />
     </div>
+  );
+}
+
+function LanguagePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" className="w-full justify-between">
+          {value}
+          <Search className="h-4 w-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search language..." />
+          <CommandList>
+            <CommandEmpty>No language found.</CommandEmpty>
+            <CommandGroup>
+              {LANGUAGES.map(l => (
+                <CommandItem key={l} value={l} onSelect={() => { onChange(l); setOpen(false); }}>
+                  <Check className={`h-4 w-4 mr-2 ${value === l ? "opacity-100" : "opacity-0"}`} />
+                  {l}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -606,6 +644,9 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   const langCode = (l: string) => ({
     English: "en-US", Hindi: "hi-IN", Spanish: "es-ES", French: "fr-FR",
     German: "de-DE", Japanese: "ja-JP", Arabic: "ar-SA",
+    Chinese: "zh-CN", Portuguese: "pt-BR", Russian: "ru-RU", Italian: "it-IT",
+    Korean: "ko-KR", Bengali: "bn-IN", Turkish: "tr-TR", Dutch: "nl-NL",
+    Urdu: "ur-PK", Tamil: "ta-IN",
   } as Record<string, string>)[l] || "en-US";
 
   const startCamera = async (mode: "user" | "environment" = facing) => {
