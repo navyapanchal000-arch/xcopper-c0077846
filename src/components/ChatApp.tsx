@@ -402,7 +402,7 @@ export default function ChatApp() {
                     if (!isLoading) sendMessage(input);
                   }
                 }}
-                placeholder="Ask chat X"
+                placeholder={PLACEHOLDERS[placeholderIdx]}
                 rows={1}
                 className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40"
               />
@@ -474,20 +474,14 @@ export default function ChatApp() {
             <DialogDescription>Configure your X COPPER experience.</DialogDescription>
           </DialogHeader>
           <Tabs defaultValue="general" className="pt-2">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="history"><History className="h-3.5 w-3.5 mr-1" />History</TabsTrigger>
-              <TabsTrigger value="account">Account</TabsTrigger>
             </TabsList>
             <TabsContent value="general" className="space-y-4 pt-4">
               <div>
                 <label className="text-sm font-medium mb-2 block">Language for live mode</label>
-                <Select value={language} onValueChange={setLanguage}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <LanguagePicker value={language} onChange={setLanguage} />
               </div>
             </TabsContent>
             <TabsContent value="history" className="pt-4">
@@ -520,23 +514,6 @@ export default function ChatApp() {
                 </div>
               )}
             </TabsContent>
-            <TabsContent value="account" className="pt-4 space-y-3">
-              {user ? (
-                <div className="space-y-3">
-                  <div className="text-sm">
-                    <p className="text-muted-foreground">Signed in as</p>
-                    <p className="font-medium">{user.email}</p>
-                  </div>
-                  <Button variant="outline" className="w-full" onClick={async () => { await supabase.auth.signOut(); toast.success("Signed out"); }}>
-                    <LogOut className="h-4 w-4 mr-2" /> Sign out
-                  </Button>
-                </div>
-              ) : (
-                <Button className="w-full" onClick={() => { setShowSettings(false); setShowAuth(true); }}>
-                  <LogIn className="h-4 w-4 mr-2" /> Sign in / Sign up
-                </Button>
-              )}
-            </TabsContent>
           </Tabs>
         </DialogContent>
       </Dialog>
@@ -545,6 +522,36 @@ export default function ChatApp() {
 
       <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} />
     </div>
+  );
+}
+
+function LanguagePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" className="w-full justify-between">
+          {value}
+          <Search className="h-4 w-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search language..." />
+          <CommandList>
+            <CommandEmpty>No language found.</CommandEmpty>
+            <CommandGroup>
+              {LANGUAGES.map(l => (
+                <CommandItem key={l} value={l} onSelect={() => { onChange(l); setOpen(false); }}>
+                  <Check className={`h-4 w-4 mr-2 ${value === l ? "opacity-100" : "opacity-0"}`} />
+                  {l}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
