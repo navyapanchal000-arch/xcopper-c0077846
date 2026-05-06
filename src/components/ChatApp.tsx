@@ -644,6 +644,9 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   const langCode = (l: string) => ({
     English: "en-US", Hindi: "hi-IN", Spanish: "es-ES", French: "fr-FR",
     German: "de-DE", Japanese: "ja-JP", Arabic: "ar-SA",
+    Chinese: "zh-CN", Portuguese: "pt-BR", Russian: "ru-RU", Italian: "it-IT",
+    Korean: "ko-KR", Bengali: "bn-IN", Turkish: "tr-TR", Dutch: "nl-NL",
+    Urdu: "ur-PK", Tamil: "ta-IN",
   } as Record<string, string>)[l] || "en-US";
 
   const startCamera = async (mode: "user" | "environment" = facing) => {
