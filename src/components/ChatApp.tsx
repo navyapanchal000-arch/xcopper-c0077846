@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
-  History, LogIn, LogOut, RefreshCw, Trash2,
+  History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,11 +15,9 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { XLogo } from "@/components/XLogo";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +29,12 @@ type Chat = { id: string; title: string; messages: Msg[] };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
-const LANGUAGES = ["English","Hindi","Spanish","French","German","Japanese","Arabic"];
+const LANGUAGES = [
+  "English","Hindi","Spanish","French","German","Japanese","Arabic",
+  "Chinese","Portuguese","Russian","Italian","Korean","Bengali","Turkish","Dutch","Urdu","Tamil",
+];
+
+const PLACEHOLDERS = ["Ask X COPPER", "MADE BY NAVYA PANCHAL"];
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -48,6 +51,12 @@ export default function ChatApp() {
   const [language, setLanguage] = useState("English");
   const [liveOpen, setLiveOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
@@ -295,6 +304,28 @@ export default function ChatApp() {
                 <DropdownMenuItem onClick={newChat}>
                   <Plus className="h-4 w-4 mr-2" /> New chat
                 </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" title="Account">
+                  <UserIcon className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {user ? (
+                  <>
+                    <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={async () => { await supabase.auth.signOut(); toast.success("Signed out"); }}>
+                      <LogOut className="h-4 w-4 mr-2" /> Sign out
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem onClick={() => setShowAuth(true)}>
+                    <LogIn className="h-4 w-4 mr-2" /> Sign in / Sign up
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenu>
