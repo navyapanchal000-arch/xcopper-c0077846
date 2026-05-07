@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
-  History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search,
+  History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +34,13 @@ const LANGUAGES = [
   "Chinese","Portuguese","Russian","Italian","Korean","Bengali","Turkish","Dutch","Urdu","Tamil",
 ];
 
-const PLACEHOLDERS = ["Ask X COPPER", "MADE BY NAVYA PANCHAL"];
+const PLACEHOLDERS = [
+  "Ask X COPPER",
+  "MADE BY NAVYA PANCHAL",
+  "Ask anything...",
+  "What's on your mind?",
+  "Try X COPPER Live",
+];
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -54,7 +60,7 @@ export default function ChatApp() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 1000);
+    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 4000);
     return () => clearInterval(t);
   }, []);
 
@@ -394,6 +400,7 @@ export default function ChatApp() {
             )}
             <div className="flex flex-col rounded-2xl border border-border bg-card p-2">
               <Textarea
+                key={input ? "typing" : `ph-${placeholderIdx}`}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => {
@@ -404,7 +411,7 @@ export default function ChatApp() {
                 }}
                 placeholder={PLACEHOLDERS[placeholderIdx]}
                 rows={1}
-                className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40"
+                className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40 placeholder:animate-fade-in"
               />
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-0.5">
