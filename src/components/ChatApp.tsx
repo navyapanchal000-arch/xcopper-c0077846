@@ -415,7 +415,7 @@ export default function ChatApp() {
                 {!input && (
                   <span
                     key={placeholderIdx}
-                    className="pointer-events-none absolute left-3 top-2 text-sm text-muted-foreground animate-fade-in"
+                    className="pointer-events-none absolute left-3 top-2 text-sm text-muted-foreground animate-in fade-in slide-in-from-bottom-2 duration-700"
                   >
                     {PLACEHOLDERS[placeholderIdx]}
                   </span>
