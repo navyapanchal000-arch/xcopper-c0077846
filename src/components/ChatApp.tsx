@@ -4,6 +4,7 @@ import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
+  Volume2, VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,6 +59,25 @@ export default function ChatApp() {
   const [liveOpen, setLiveOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
+
+  const speak = (idx: number, text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      toast.error("Speech not supported in this browser");
+      return;
+    }
+    if (speakingIdx === idx) {
+      window.speechSynthesis.cancel();
+      setSpeakingIdx(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>~\-]/g, ""));
+    u.onend = () => setSpeakingIdx(null);
+    u.onerror = () => setSpeakingIdx(null);
+    setSpeakingIdx(idx);
+    window.speechSynthesis.speak(u);
+  };
 
   useEffect(() => {
     const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 4000);
@@ -296,7 +316,7 @@ export default function ChatApp() {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
+                <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5 text-primary" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
@@ -315,7 +335,7 @@ export default function ChatApp() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" title="Account">
-                  <UserIcon className="h-5 w-5" />
+                  <UserIcon className="h-5 w-5 text-primary" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -365,7 +385,7 @@ export default function ChatApp() {
               {active.messages.map((m, i) => (
                 <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   {m.role === "assistant" && <XLogo className="h-7 w-7 mt-1 shrink-0" />}
-                  <div className={`rounded-2xl px-4 py-3 max-w-[85%] ${m.role === "user" ? "bg-secondary text-foreground" : "bg-card border border-border"}`}>
+                  <div className={`rounded-2xl px-4 py-3 max-w-[85%] ${m.role === "user" ? "bg-secondary text-foreground" : "bg-card border border-border animate-in fade-in slide-in-from-bottom-2 duration-500"}`}>
                     {m.attachments && m.attachments.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
                         {m.attachments.map((a, j) => a.type.startsWith("image/") && a.url ? (
@@ -376,8 +396,22 @@ export default function ChatApp() {
                       </div>
                     )}
                     <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                      <ReactMarkdown>{m.content || (isLoading && i === active.messages.length - 1 ? "▍" : "")}</ReactMarkdown>
+                      {!m.content && isLoading && i === active.messages.length - 1 ? (
+                        <XLogo className="h-6 w-6 animate-spin" />
+                      ) : (
+                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                      )}
                     </div>
+                    {m.role === "assistant" && m.content && (
+                      <button
+                        onClick={() => speak(i, m.content)}
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition"
+                        title={speakingIdx === i ? "Stop" : "Read aloud"}
+                      >
+                        {speakingIdx === i ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                        {speakingIdx === i ? "Stop" : "Listen"}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
