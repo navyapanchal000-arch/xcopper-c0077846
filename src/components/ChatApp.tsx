@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
-  History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search,
+  History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +34,13 @@ const LANGUAGES = [
   "Chinese","Portuguese","Russian","Italian","Korean","Bengali","Turkish","Dutch","Urdu","Tamil",
 ];
 
-const PLACEHOLDERS = ["Ask X COPPER", "MADE BY NAVYA PANCHAL"];
+const PLACEHOLDERS = [
+  "Ask X COPPER",
+  "MADE BY NAVYA PANCHAL",
+  "Ask anything...",
+  "What's on your mind?",
+  "Try X COPPER Live",
+];
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -54,7 +60,7 @@ export default function ChatApp() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 1000);
+    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDERS.length), 4000);
     return () => clearInterval(t);
   }, []);
 
@@ -394,6 +400,7 @@ export default function ChatApp() {
             )}
             <div className="flex flex-col rounded-2xl border border-border bg-card p-2">
               <Textarea
+                key={input ? "typing" : `ph-${placeholderIdx}`}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => {
@@ -404,7 +411,7 @@ export default function ChatApp() {
                 }}
                 placeholder={PLACEHOLDERS[placeholderIdx]}
                 rows={1}
-                className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40"
+                className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40 placeholder:animate-fade-in"
               />
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-0.5">
@@ -559,6 +566,7 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const google = async () => {
@@ -614,7 +622,23 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
 
           <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
-          <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+          <div className="relative">
+            <Input
+              type={showPwd ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPwd(s => !s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              aria-label={showPwd ? "Hide password" : "Show password"}
+            >
+              {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
           <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90" onClick={submit} disabled={busy}>
             {mode === "signin" ? "Sign in" : "Sign up"}
           </Button>
