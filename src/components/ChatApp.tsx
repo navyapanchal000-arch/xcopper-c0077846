@@ -399,20 +399,28 @@ export default function ChatApp() {
               </div>
             )}
             <div className="flex flex-col rounded-2xl border border-border bg-card p-2">
-              <Textarea
-                key={input ? "typing" : `ph-${placeholderIdx}`}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (!isLoading) sendMessage(input);
-                  }
-                }}
-                placeholder={PLACEHOLDERS[placeholderIdx]}
-                rows={1}
-                className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40 placeholder:animate-fade-in"
-              />
+              <div className="relative">
+                <Textarea
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!isLoading) sendMessage(input);
+                    }
+                  }}
+                  rows={1}
+                  className="border-0 bg-transparent resize-none focus-visible:ring-0 min-h-[40px] max-h-40 relative z-10"
+                />
+                {!input && (
+                  <span
+                    key={placeholderIdx}
+                    className="pointer-events-none absolute left-3 top-2 text-sm text-muted-foreground animate-fade-in"
+                  >
+                    {PLACEHOLDERS[placeholderIdx]}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-0.5">
                   <Popover>
