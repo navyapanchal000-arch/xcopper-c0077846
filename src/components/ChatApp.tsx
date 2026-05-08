@@ -577,6 +577,11 @@ export default function ChatApp() {
                 <label className="text-sm font-medium mb-2 block">Language for live mode</label>
                 <LanguagePicker value={language} onChange={setLanguage} />
               </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Voice (Listen & Live)</label>
+                <VoicePicker voices={voices} value={voiceURI} onChange={setVoiceURI} />
+                <p className="text-[11px] text-muted-foreground mt-1">Choose a voice for read-aloud and Live X COPPER.</p>
+              </div>
             </TabsContent>
             <TabsContent value="history" className="pt-4">
               {!user ? (
@@ -614,7 +619,7 @@ export default function ChatApp() {
 
       <AuthDialog open={showAuth} onClose={() => setShowAuth(false)} />
 
-      <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} />
+      <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceURI={voiceURI} />
     </div>
   );
 }
