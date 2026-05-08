@@ -730,6 +730,20 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<any>(null);
+  const camOnRef = useRef(false);
+  useEffect(() => { camOnRef.current = camOn; }, [camOn]);
+
+  const captureFrame = (): string | null => {
+    const v = videoRef.current;
+    if (!v || !streamRef.current || v.videoWidth === 0) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(v, 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.8);
+  };
 
   const langCode = (l: string) => ({
     English: "en-US", Hindi: "hi-IN", Spanish: "es-ES", French: "fr-FR",
@@ -785,10 +799,28 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
       if (!final.trim()) return;
       setResponse("…");
       try {
+        const frame = camOnRef.current ? captureFrame() : null;
+        const userContent: any = frame
+          ? [
+              { type: "text", text: `Reply briefly in ${language}. The user is showing this live camera view. ${final}` },
+              { type: "image_url", image_url: { url: frame } },
+            ]
+          : `Reply briefly in ${language}. ${final}`;
+        const sysContent =
+          "You are X COPPER in LIVE mode, created by Navya Panchal. " +
+          (camOnRef.current
+            ? "The user's camera is ON — an image of what they are seeing is attached. Look at it and answer based on what is visible."
+            : "The user's camera is OFF. If they ask anything that requires you to see them or their surroundings (e.g. 'what is this', 'look at this', 'see my screen', 'what am I holding'), reply that the camera is off and ask them to turn it on. Otherwise answer normally.") +
+          " Never mention any underlying model or provider.";
         const resp = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({ messages: [{ role: "user", content: `Reply briefly in ${language}. ${final}` }] }),
+          body: JSON.stringify({
+            messages: [
+              { role: "system", content: sysContent },
+              { role: "user", content: userContent },
+            ],
+          }),
         });
         const reader = resp.body!.getReader();
         const decoder = new TextDecoder();
