@@ -4,7 +4,7 @@ import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
-  Volume2, VolumeX,
+  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +60,18 @@ export default function ChatApp() {
   const [user, setUser] = useState<User | null>(null);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
+  const [mode, setMode] = useState<string>("general");
+
+  const MODES: { id: string; label: string; icon: any }[] = [
+    { id: "general", label: "General", icon: Sparkles },
+    { id: "photo", label: "Photo edit", icon: Wand2 },
+    { id: "coding", label: "Coding", icon: Code2 },
+    { id: "study", label: "Study", icon: GraduationCap },
+    { id: "writing", label: "Writing", icon: PenLine },
+    { id: "translate", label: "Translate", icon: Languages },
+    { id: "brainstorm", label: "Brainstorm", icon: Lightbulb },
+    { id: "math", label: "Math", icon: Sigma },
+  ];
 
   const speak = (idx: number, text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -194,7 +206,7 @@ export default function ChatApp() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: apiMessages, useWebSearch }),
+        body: JSON.stringify({ messages: apiMessages, useWebSearch, mode }),
         signal: abortRef.current.signal,
       });
 
@@ -241,7 +253,7 @@ export default function ChatApp() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [active, attachments, useWebSearch, activeId, persistActive]);
+  }, [active, attachments, useWebSearch, activeId, persistActive, mode]);
 
   const stopStream = () => abortRef.current?.abort();
 
