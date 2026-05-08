@@ -61,6 +61,21 @@ export default function ChatApp() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("general");
+  const [voiceURI, setVoiceURI] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("xcopper_voice") || "";
+  });
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const load = () => setVoices(window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+  }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("xcopper_voice", voiceURI);
+  }, [voiceURI]);
 
   const MODES: { id: string; label: string; icon: any }[] = [
     { id: "general", label: "General", icon: Sparkles },
@@ -85,6 +100,10 @@ export default function ChatApp() {
     }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>~\-]/g, ""));
+    u.rate = 1;
+    u.pitch = 1;
+    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === voiceURI);
+    if (v) u.voice = v;
     u.onend = () => setSpeakingIdx(null);
     u.onerror = () => setSpeakingIdx(null);
     setSpeakingIdx(idx);
@@ -409,31 +428,33 @@ export default function ChatApp() {
               {active.messages.map((m, i) => (
                 <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   {m.role === "assistant" && <XLogo className="h-7 w-7 mt-1 shrink-0" />}
-                  <div className={`rounded-2xl px-4 py-3 max-w-[85%] ${m.role === "user" ? "bg-secondary text-foreground" : "bg-card border border-border animate-in fade-in slide-in-from-bottom-2 duration-500"}`}>
-                    {m.attachments && m.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {m.attachments.map((a, j) => a.type.startsWith("image/") && a.url ? (
-                          <img key={j} src={a.url} alt={a.name} className="max-h-40 rounded-md" />
-                        ) : (
-                          <div key={j} className="text-xs px-2 py-1 rounded bg-muted">{a.name}</div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                      {!m.content && isLoading && i === active.messages.length - 1 ? (
-                        <XLogo className="h-6 w-6 animate-spin" />
-                      ) : (
-                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <div className={`flex flex-col max-w-[85%] ${m.role === "user" ? "items-end" : "items-start"}`}>
+                    <div className={`rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-secondary text-foreground" : "bg-card border border-border animate-in fade-in slide-in-from-bottom-2 duration-500"}`}>
+                      {m.attachments && m.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {m.attachments.map((a, j) => a.type.startsWith("image/") && a.url ? (
+                            <img key={j} src={a.url} alt={a.name} className="max-h-40 rounded-md" />
+                          ) : (
+                            <div key={j} className="text-xs px-2 py-1 rounded bg-muted">{a.name}</div>
+                          ))}
+                        </div>
                       )}
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                        {!m.content && isLoading && i === active.messages.length - 1 ? (
+                          <XLogo className="h-6 w-6 animate-spin" />
+                        ) : (
+                          <ReactMarkdown>{m.content}</ReactMarkdown>
+                        )}
+                      </div>
                     </div>
                     {m.role === "assistant" && m.content && (
                       <button
                         onClick={() => speak(i, m.content)}
-                        className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition"
-                        title={speakingIdx === i ? "Stop" : "Read aloud"}
+                        className="mt-2 ml-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition px-2 py-1 rounded-full hover:bg-accent"
+                        title={speakingIdx === i ? "Stop" : "Listen"}
                       >
-                        {speakingIdx === i ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-                        {speakingIdx === i ? "Stop" : "Listen"}
+                        {speakingIdx === i ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                        <span>{speakingIdx === i ? "Stop" : "Listen"}</span>
                       </button>
                     )}
                   </div>
@@ -556,6 +577,11 @@ export default function ChatApp() {
                 <label className="text-sm font-medium mb-2 block">Language for live mode</label>
                 <LanguagePicker value={language} onChange={setLanguage} />
               </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Voice (Listen & Live)</label>
+                <VoicePicker voices={voices} value={voiceURI} onChange={setVoiceURI} />
+                <p className="text-[11px] text-muted-foreground mt-1">Choose a voice for read-aloud and Live X COPPER.</p>
+              </div>
             </TabsContent>
             <TabsContent value="history" className="pt-4">
               {!user ? (
@@ -593,7 +619,7 @@ export default function ChatApp() {
 
       <AuthDialog open={showAuth} onClose={() => setShowAuth(false)} />
 
-      <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} />
+      <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceURI={voiceURI} />
     </div>
   );
 }
@@ -618,6 +644,51 @@ function LanguagePicker({ value, onChange }: { value: string; onChange: (v: stri
                 <CommandItem key={l} value={l} onSelect={() => { onChange(l); setOpen(false); }}>
                   <Check className={`h-4 w-4 mr-2 ${value === l ? "opacity-100" : "opacity-0"}`} />
                   {l}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice[]; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  // Curate up to 10 voices: prefer English + a few non-English
+  const curated = (() => {
+    if (voices.length === 0) return [];
+    const en = voices.filter(v => v.lang.startsWith("en"));
+    const others = voices.filter(v => !v.lang.startsWith("en"));
+    const list = [...en.slice(0, 6), ...others.slice(0, 4)];
+    return list.slice(0, 10);
+  })();
+  const current = voices.find(v => v.voiceURI === value);
+  const label = current ? `${current.name} (${current.lang})` : "Default voice";
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" className="w-full justify-between">
+          <span className="truncate">{label}</span>
+          <Search className="h-4 w-4 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search voice..." />
+          <CommandList>
+            <CommandEmpty>No voices available.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem value="default" onSelect={() => { onChange(""); setOpen(false); }}>
+                <Check className={`h-4 w-4 mr-2 ${value === "" ? "opacity-100" : "opacity-0"}`} />
+                Default voice
+              </CommandItem>
+              {curated.map(v => (
+                <CommandItem key={v.voiceURI} value={`${v.name} ${v.lang}`} onSelect={() => { onChange(v.voiceURI); setOpen(false); }}>
+                  <Check className={`h-4 w-4 mr-2 ${value === v.voiceURI ? "opacity-100" : "opacity-0"}`} />
+                  <span className="truncate">{v.name}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">{v.lang}</span>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -721,7 +792,7 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => void; language: string }) {
+function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClose: () => void; language: string; voiceURI: string }) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
@@ -777,6 +848,10 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const u = new SpeechSynthesisUtterance(text);
     u.lang = langCode(language);
+    u.rate = 1;
+    u.pitch = 1;
+    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === voiceURI);
+    if (v) u.voice = v;
     window.speechSynthesis.speak(u);
   };
 
