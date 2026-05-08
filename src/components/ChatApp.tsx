@@ -4,7 +4,7 @@ import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
-  Volume2, VolumeX,
+  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +60,18 @@ export default function ChatApp() {
   const [user, setUser] = useState<User | null>(null);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
+  const [mode, setMode] = useState<string>("general");
+
+  const MODES: { id: string; label: string; icon: any }[] = [
+    { id: "general", label: "General", icon: Sparkles },
+    { id: "photo", label: "Photo edit", icon: Wand2 },
+    { id: "coding", label: "Coding", icon: Code2 },
+    { id: "study", label: "Study", icon: GraduationCap },
+    { id: "writing", label: "Writing", icon: PenLine },
+    { id: "translate", label: "Translate", icon: Languages },
+    { id: "brainstorm", label: "Brainstorm", icon: Lightbulb },
+    { id: "math", label: "Math", icon: Sigma },
+  ];
 
   const speak = (idx: number, text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -194,7 +206,7 @@ export default function ChatApp() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: apiMessages, useWebSearch }),
+        body: JSON.stringify({ messages: apiMessages, useWebSearch, mode }),
         signal: abortRef.current.signal,
       });
 
@@ -241,7 +253,7 @@ export default function ChatApp() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [active, attachments, useWebSearch, activeId, persistActive]);
+  }, [active, attachments, useWebSearch, activeId, persistActive, mode]);
 
   const stopStream = () => abortRef.current?.abort();
 
@@ -320,6 +332,18 @@ export default function ChatApp() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Mode</DropdownMenuLabel>
+                {MODES.map(m => {
+                  const Icon = m.icon;
+                  return (
+                    <DropdownMenuItem key={m.id} onClick={() => { setMode(m.id); toast.success(`${m.label} mode`); }}>
+                      <Icon className="h-4 w-4 mr-2 text-primary" />
+                      <span className="flex-1">{m.label}</span>
+                      {mode === m.id && <Check className="h-4 w-4 text-primary" />}
+                    </DropdownMenuItem>
+                  );
+                })}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowSettings(true)}>
                   <Settings className="h-4 w-4 mr-2" /> Settings
@@ -706,6 +730,20 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<any>(null);
+  const camOnRef = useRef(false);
+  useEffect(() => { camOnRef.current = camOn; }, [camOn]);
+
+  const captureFrame = (): string | null => {
+    const v = videoRef.current;
+    if (!v || !streamRef.current || v.videoWidth === 0) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(v, 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.8);
+  };
 
   const langCode = (l: string) => ({
     English: "en-US", Hindi: "hi-IN", Spanish: "es-ES", French: "fr-FR",
@@ -761,10 +799,28 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
       if (!final.trim()) return;
       setResponse("…");
       try {
+        const frame = camOnRef.current ? captureFrame() : null;
+        const userContent: any = frame
+          ? [
+              { type: "text", text: `Reply briefly in ${language}. The user is showing this live camera view. ${final}` },
+              { type: "image_url", image_url: { url: frame } },
+            ]
+          : `Reply briefly in ${language}. ${final}`;
+        const sysContent =
+          "You are X COPPER in LIVE mode, created by Navya Panchal. " +
+          (camOnRef.current
+            ? "The user's camera is ON — an image of what they are seeing is attached. Look at it and answer based on what is visible."
+            : "The user's camera is OFF. If they ask anything that requires you to see them or their surroundings (e.g. 'what is this', 'look at this', 'see my screen', 'what am I holding'), reply that the camera is off and ask them to turn it on. Otherwise answer normally.") +
+          " Never mention any underlying model or provider.";
         const resp = await fetch(CHAT_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({ messages: [{ role: "user", content: `Reply briefly in ${language}. ${final}` }] }),
+          body: JSON.stringify({
+            messages: [
+              { role: "system", content: sysContent },
+              { role: "user", content: userContent },
+            ],
+          }),
         });
         const reader = resp.body!.getReader();
         const decoder = new TextDecoder();
