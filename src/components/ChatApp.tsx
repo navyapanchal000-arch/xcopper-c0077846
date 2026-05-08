@@ -61,6 +61,21 @@ export default function ChatApp() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("general");
+  const [voiceURI, setVoiceURI] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("xcopper_voice") || "";
+  });
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const load = () => setVoices(window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+  }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("xcopper_voice", voiceURI);
+  }, [voiceURI]);
 
   const MODES: { id: string; label: string; icon: any }[] = [
     { id: "general", label: "General", icon: Sparkles },
@@ -85,6 +100,10 @@ export default function ChatApp() {
     }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>~\-]/g, ""));
+    u.rate = 1;
+    u.pitch = 1;
+    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === voiceURI);
+    if (v) u.voice = v;
     u.onend = () => setSpeakingIdx(null);
     u.onerror = () => setSpeakingIdx(null);
     setSpeakingIdx(idx);
