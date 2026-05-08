@@ -654,48 +654,50 @@ function LanguagePicker({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
+const FEMALE_HINTS = ["female", "woman", "girl", "samantha", "victoria", "karen", "tessa", "fiona", "moira", "veena", "rishi-female", "google उच्च-गुणवत्ता", "zira", "susan", "hazel", "serena", "allison", "ava", "siri female"];
+const MALE_HINTS = ["male", "man", "boy", "daniel", "alex", "fred", "tom", "oliver", "rishi", "david", "mark", "george", "arthur", "aaron", "siri male"];
+
+function pickVoice(voices: SpeechSynthesisVoice[], gender: "female" | "male"): SpeechSynthesisVoice | undefined {
+  const hints = gender === "female" ? FEMALE_HINTS : MALE_HINTS;
+  const other = gender === "female" ? MALE_HINTS : FEMALE_HINTS;
+  const match = (v: SpeechSynthesisVoice) => {
+    const n = v.name.toLowerCase();
+    return hints.some(h => n.includes(h)) && !other.some(h => n.includes(h));
+  };
+  return voices.find(v => v.lang.startsWith("en") && match(v))
+      || voices.find(match)
+      || (gender === "female" ? voices.find(v => v.lang.startsWith("en")) : voices.slice().reverse().find(v => v.lang.startsWith("en")));
+}
+
 function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice[]; value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false);
-  // Curate up to 10 voices: prefer English + a few non-English
-  const curated = (() => {
-    if (voices.length === 0) return [];
-    const en = voices.filter(v => v.lang.startsWith("en"));
-    const others = voices.filter(v => !v.lang.startsWith("en"));
-    const list = [...en.slice(0, 6), ...others.slice(0, 4)];
-    return list.slice(0, 10);
-  })();
-  const current = voices.find(v => v.voiceURI === value);
-  const label = current ? `${current.name} (${current.lang})` : "Default voice";
+  const female = pickVoice(voices, "female");
+  const male = pickVoice(voices, "male");
+  const options = [
+    { id: "female", label: "Girl voice", voice: female },
+    { id: "male", label: "Boy voice", voice: male },
+  ];
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" className="w-full justify-between">
-          <span className="truncate">{label}</span>
-          <Search className="h-4 w-4 opacity-50 shrink-0" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search voice..." />
-          <CommandList>
-            <CommandEmpty>No voices available.</CommandEmpty>
-            <CommandGroup>
-              <CommandItem value="default" onSelect={() => { onChange(""); setOpen(false); }}>
-                <Check className={`h-4 w-4 mr-2 ${value === "" ? "opacity-100" : "opacity-0"}`} />
-                Default voice
-              </CommandItem>
-              {curated.map(v => (
-                <CommandItem key={v.voiceURI} value={`${v.name} ${v.lang}`} onSelect={() => { onChange(v.voiceURI); setOpen(false); }}>
-                  <Check className={`h-4 w-4 mr-2 ${value === v.voiceURI ? "opacity-100" : "opacity-0"}`} />
-                  <span className="truncate">{v.name}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">{v.lang}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div className="grid grid-cols-2 gap-2">
+      {options.map(o => {
+        const uri = o.voice?.voiceURI || "";
+        const active = value === uri && uri !== "";
+        return (
+          <button
+            key={o.id}
+            onClick={() => uri && onChange(uri)}
+            disabled={!o.voice}
+            className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/10" : "border-border hover:bg-accent"} disabled:opacity-50`}
+          >
+            <div className="flex items-center gap-2 w-full">
+              <Volume2 className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
+              <span className="text-sm font-medium flex-1">{o.label}</span>
+              {active && <Check className="h-4 w-4 text-primary" />}
+            </div>
+            <span className="text-[11px] text-muted-foreground truncate w-full">{o.voice?.name || "Unavailable"}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
