@@ -654,6 +654,51 @@ function LanguagePicker({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
+function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice[]; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  // Curate up to 10 voices: prefer English + a few non-English
+  const curated = (() => {
+    if (voices.length === 0) return [];
+    const en = voices.filter(v => v.lang.startsWith("en"));
+    const others = voices.filter(v => !v.lang.startsWith("en"));
+    const list = [...en.slice(0, 6), ...others.slice(0, 4)];
+    return list.slice(0, 10);
+  })();
+  const current = voices.find(v => v.voiceURI === value);
+  const label = current ? `${current.name} (${current.lang})` : "Default voice";
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" className="w-full justify-between">
+          <span className="truncate">{label}</span>
+          <Search className="h-4 w-4 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search voice..." />
+          <CommandList>
+            <CommandEmpty>No voices available.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem value="default" onSelect={() => { onChange(""); setOpen(false); }}>
+                <Check className={`h-4 w-4 mr-2 ${value === "" ? "opacity-100" : "opacity-0"}`} />
+                Default voice
+              </CommandItem>
+              {curated.map(v => (
+                <CommandItem key={v.voiceURI} value={`${v.name} ${v.lang}`} onSelect={() => { onChange(v.voiceURI); setOpen(false); }}>
+                  <Check className={`h-4 w-4 mr-2 ${value === v.voiceURI ? "opacity-100" : "opacity-0"}`} />
+                  <span className="truncate">{v.name}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">{v.lang}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -747,7 +792,7 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => void; language: string }) {
+function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClose: () => void; language: string; voiceURI: string }) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
@@ -803,6 +848,10 @@ function LiveMode({ open, onClose, language }: { open: boolean; onClose: () => v
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const u = new SpeechSynthesisUtterance(text);
     u.lang = langCode(language);
+    u.rate = 1;
+    u.pitch = 1;
+    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === voiceURI);
+    if (v) u.voice = v;
     window.speechSynthesis.speak(u);
   };
 
