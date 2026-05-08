@@ -428,31 +428,33 @@ export default function ChatApp() {
               {active.messages.map((m, i) => (
                 <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   {m.role === "assistant" && <XLogo className="h-7 w-7 mt-1 shrink-0" />}
-                  <div className={`rounded-2xl px-4 py-3 max-w-[85%] ${m.role === "user" ? "bg-secondary text-foreground" : "bg-card border border-border animate-in fade-in slide-in-from-bottom-2 duration-500"}`}>
-                    {m.attachments && m.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {m.attachments.map((a, j) => a.type.startsWith("image/") && a.url ? (
-                          <img key={j} src={a.url} alt={a.name} className="max-h-40 rounded-md" />
-                        ) : (
-                          <div key={j} className="text-xs px-2 py-1 rounded bg-muted">{a.name}</div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                      {!m.content && isLoading && i === active.messages.length - 1 ? (
-                        <XLogo className="h-6 w-6 animate-spin" />
-                      ) : (
-                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <div className={`flex flex-col max-w-[85%] ${m.role === "user" ? "items-end" : "items-start"}`}>
+                    <div className={`rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-secondary text-foreground" : "bg-card border border-border animate-in fade-in slide-in-from-bottom-2 duration-500"}`}>
+                      {m.attachments && m.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {m.attachments.map((a, j) => a.type.startsWith("image/") && a.url ? (
+                            <img key={j} src={a.url} alt={a.name} className="max-h-40 rounded-md" />
+                          ) : (
+                            <div key={j} className="text-xs px-2 py-1 rounded bg-muted">{a.name}</div>
+                          ))}
+                        </div>
                       )}
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                        {!m.content && isLoading && i === active.messages.length - 1 ? (
+                          <XLogo className="h-6 w-6 animate-spin" />
+                        ) : (
+                          <ReactMarkdown>{m.content}</ReactMarkdown>
+                        )}
+                      </div>
                     </div>
                     {m.role === "assistant" && m.content && (
                       <button
                         onClick={() => speak(i, m.content)}
-                        className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition"
-                        title={speakingIdx === i ? "Stop" : "Read aloud"}
+                        className="mt-2 ml-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition px-2 py-1 rounded-full hover:bg-accent"
+                        title={speakingIdx === i ? "Stop" : "Listen"}
                       >
-                        {speakingIdx === i ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-                        {speakingIdx === i ? "Stop" : "Listen"}
+                        {speakingIdx === i ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                        <span>{speakingIdx === i ? "Stop" : "Listen"}</span>
                       </button>
                     )}
                   </div>
