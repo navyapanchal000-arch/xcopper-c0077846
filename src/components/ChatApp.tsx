@@ -333,6 +333,18 @@ export default function ChatApp() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Mode</DropdownMenuLabel>
+                {MODES.map(m => {
+                  const Icon = m.icon;
+                  return (
+                    <DropdownMenuItem key={m.id} onClick={() => { setMode(m.id); toast.success(`${m.label} mode`); }}>
+                      <Icon className="h-4 w-4 mr-2 text-primary" />
+                      <span className="flex-1">{m.label}</span>
+                      {mode === m.id && <Check className="h-4 w-4 text-primary" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowSettings(true)}>
                   <Settings className="h-4 w-4 mr-2" /> Settings
                 </DropdownMenuItem>
