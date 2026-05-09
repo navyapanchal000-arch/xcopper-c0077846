@@ -4,7 +4,7 @@ import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
-  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
+  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles, Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,7 @@ import type { User } from "@supabase/supabase-js";
 
 type Msg = { role: "user" | "assistant"; content: string; attachments?: { name: string; type: string; url?: string }[] };
 type Chat = { id: string; title: string; messages: Msg[] };
+type VoiceMode = "female" | "male";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -43,7 +44,7 @@ const PLACEHOLDERS = [
   "Try X COPPER Live",
 ];
 
-function uid() { return Math.random().toString(36).slice(2, 10); }
+function uid() { return crypto.randomUUID(); }
 
 export default function ChatApp() {
   const [chats, setChats] = useState<Chat[]>([{ id: uid(), title: "New chat", messages: [] }]);
@@ -61,9 +62,14 @@ export default function ChatApp() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("general");
-  const [voiceURI, setVoiceURI] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem("xcopper_voice") || "";
+  const [selectedAI, setSelectedAI] = useState<string>(() => {
+    if (typeof window === "undefined") return "xcopper";
+    return localStorage.getItem("xcopper_ai") || "xcopper";
+  });
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
+    if (typeof window === "undefined") return "female";
+    const saved = localStorage.getItem("xcopper_voice_mode");
+    return saved === "male" ? "male" : "female";
   });
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
@@ -74,8 +80,11 @@ export default function ChatApp() {
     window.speechSynthesis.onvoiceschanged = load;
   }, []);
   useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem("xcopper_voice", voiceURI);
-  }, [voiceURI]);
+    if (typeof window !== "undefined") localStorage.setItem("xcopper_voice_mode", voiceMode);
+  }, [voiceMode]);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("xcopper_ai", selectedAI);
+  }, [selectedAI]);
 
   const MODES: { id: string; label: string; icon: any }[] = [
     { id: "general", label: "General", icon: Sparkles },
@@ -87,6 +96,17 @@ export default function ChatApp() {
     { id: "brainstorm", label: "Brainstorm", icon: Lightbulb },
     { id: "math", label: "Math", icon: Sigma },
   ];
+
+  const AI_OPTIONS: { id: string; label: string }[] = [
+    { id: "xcopper", label: "X COPPER" },
+    { id: "chatgpt", label: "ChatGPT" },
+    { id: "gemini", label: "Gemini" },
+    { id: "claude", label: "Claude AI" },
+    { id: "perplexity", label: "Perplexity AI" },
+    { id: "grok", label: "Grok AI" },
+  ];
+
+  const selectedVoiceURI = pickVoice(voices, voiceMode)?.voiceURI || "";
 
   const speak = (idx: number, text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -101,8 +121,8 @@ export default function ChatApp() {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>~\-]/g, ""));
     u.rate = 1;
-    u.pitch = 1;
-    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === voiceURI);
+    u.pitch = voiceMode === "male" ? 0.85 : 1.15;
+    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
     if (v) u.voice = v;
     u.onend = () => setSpeakingIdx(null);
     u.onerror = () => setSpeakingIdx(null);
@@ -126,7 +146,14 @@ export default function ChatApp() {
 
   // Auth state
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setUser(s?.user ?? null);
+      if (!s?.user) {
+        const c = { id: uid(), title: "New chat", messages: [] };
+        setChats([c]);
+        setActiveId(c.id);
+      }
+    });
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -160,10 +187,10 @@ export default function ChatApp() {
       // Try update first; if not exists, insert
       const { data: existing } = await supabase.from("chats").select("id").eq("id", c.id).maybeSingle();
       if (existing) {
-        await supabase.from("chats").update({ title: c.title, messages: c.messages as any }).eq("id", c.id);
+        await supabase.from("chats").update({ title: c.title, messages: c.messages as any, updated_at: new Date().toISOString() }).eq("id", c.id);
       } else {
         const { data, error } = await supabase.from("chats").insert({
-          id: c.id, user_id: user.id, title: c.title, messages: c.messages as any,
+          id: c.id, user_id: user.id, title: c.title, messages: c.messages as any, updated_at: new Date().toISOString(),
         }).select("id").maybeSingle();
         if (error) console.error(error);
         if (data?.id && data.id !== c.id) {
@@ -225,7 +252,7 @@ export default function ChatApp() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: apiMessages, useWebSearch, mode }),
+        body: JSON.stringify({ messages: apiMessages, useWebSearch, mode, selectedAI }),
         signal: abortRef.current.signal,
       });
 
@@ -272,7 +299,7 @@ export default function ChatApp() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [active, attachments, useWebSearch, activeId, persistActive, mode]);
+  }, [active, attachments, useWebSearch, activeId, persistActive, mode, selectedAI]);
 
   const stopStream = () => abortRef.current?.abort();
 
@@ -351,6 +378,15 @@ export default function ChatApp() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">AI</DropdownMenuLabel>
+                {AI_OPTIONS.map(ai => (
+                  <DropdownMenuItem key={ai.id} onClick={() => { setSelectedAI(ai.id); toast.success(`${ai.label} selected`); }}>
+                    <Bot className="h-4 w-4 mr-2 text-primary" />
+                    <span className="flex-1">{ai.label}</span>
+                    {selectedAI === ai.id && <Check className="h-4 w-4 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Mode</DropdownMenuLabel>
                 {MODES.map(m => {
@@ -579,7 +615,7 @@ export default function ChatApp() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">Voice (Listen & Live)</label>
-                <VoicePicker voices={voices} value={voiceURI} onChange={setVoiceURI} />
+                <VoicePicker voices={voices} value={voiceMode} onChange={setVoiceMode} />
                 <p className="text-[11px] text-muted-foreground mt-1">Choose a voice for read-aloud and Live X COPPER.</p>
               </div>
             </TabsContent>
@@ -619,7 +655,7 @@ export default function ChatApp() {
 
       <AuthDialog open={showAuth} onClose={() => setShowAuth(false)} />
 
-      <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceURI={voiceURI} />
+      <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceMode={voiceMode} voices={voices} selectedAI={selectedAI} />
     </div>
   );
 }
@@ -669,7 +705,7 @@ function pickVoice(voices: SpeechSynthesisVoice[], gender: "female" | "male"): S
       || (gender === "female" ? voices.find(v => v.lang.startsWith("en")) : voices.slice().reverse().find(v => v.lang.startsWith("en")));
 }
 
-function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice[]; value: string; onChange: (v: string) => void }) {
+function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice[]; value: VoiceMode; onChange: (v: VoiceMode) => void }) {
   const female = pickVoice(voices, "female");
   const male = pickVoice(voices, "male");
   const options = [
@@ -679,21 +715,19 @@ function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice
   return (
     <div className="grid grid-cols-2 gap-2">
       {options.map(o => {
-        const uri = o.voice?.voiceURI || "";
-        const active = value === uri && uri !== "";
+        const active = value === o.id;
         return (
           <button
             key={o.id}
-            onClick={() => uri && onChange(uri)}
-            disabled={!o.voice}
-            className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/10" : "border-border hover:bg-accent"} disabled:opacity-50`}
+            onClick={() => onChange(o.id as VoiceMode)}
+            className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/10" : "border-border hover:bg-accent"}`}
           >
             <div className="flex items-center gap-2 w-full">
               <Volume2 className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
               <span className="text-sm font-medium flex-1">{o.label}</span>
               {active && <Check className="h-4 w-4 text-primary" />}
             </div>
-            <span className="text-[11px] text-muted-foreground truncate w-full">{o.voice?.name || "Unavailable"}</span>
+            <span className="text-[11px] text-muted-foreground truncate w-full">{o.voice?.name || "Browser default"}</span>
           </button>
         );
       })}
@@ -794,7 +828,7 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClose: () => void; language: string; voiceURI: string }) {
+function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { open: boolean; onClose: () => void; language: string; voiceMode: VoiceMode; voices: SpeechSynthesisVoice[]; selectedAI: string }) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
@@ -805,6 +839,7 @@ function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClos
   const recRef = useRef<any>(null);
   const camOnRef = useRef(false);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
+  const selectedVoiceURI = pickVoice(voices, voiceMode)?.voiceURI || "";
 
   const captureFrame = (): string | null => {
     const v = videoRef.current;
@@ -852,7 +887,7 @@ function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClos
     u.lang = langCode(language);
     u.rate = 1;
     u.pitch = 1;
-    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === voiceURI);
+    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
     if (v) u.voice = v;
     window.speechSynthesis.speak(u);
   };
@@ -897,6 +932,7 @@ function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClos
               { role: "system", content: sysContent },
               { role: "user", content: userContent },
             ],
+            selectedAI,
           }),
         });
         const reader = resp.body!.getReader();
