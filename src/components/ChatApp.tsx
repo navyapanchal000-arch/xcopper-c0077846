@@ -63,12 +63,13 @@ export default function ChatApp() {
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("general");
   const [selectedAI, setSelectedAI] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
+    if (typeof window === "undefined") return "xcopper";
     return localStorage.getItem("xcopper_ai") || "xcopper";
   });
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
     if (typeof window === "undefined") return "female";
-    return (localStorage.getItem("xcopper_voice_mode") as VoiceMode) || "female";
+    const saved = localStorage.getItem("xcopper_voice_mode");
+    return saved === "male" ? "male" : "female";
   });
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
