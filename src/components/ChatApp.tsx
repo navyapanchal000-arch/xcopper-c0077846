@@ -120,7 +120,7 @@ export default function ChatApp() {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>~\-]/g, ""));
     u.rate = 1;
-    u.pitch = 1;
+    u.pitch = voiceMode === "male" ? 0.85 : 1.15;
     const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
     if (v) u.voice = v;
     u.onend = () => setSpeakingIdx(null);
@@ -145,7 +145,14 @@ export default function ChatApp() {
 
   // Auth state
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setUser(s?.user ?? null);
+      if (!s?.user) {
+        const c = { id: uid(), title: "New chat", messages: [] };
+        setChats([c]);
+        setActiveId(c.id);
+      }
+    });
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
     return () => sub.subscription.unsubscribe();
   }, []);
