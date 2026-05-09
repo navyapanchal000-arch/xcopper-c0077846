@@ -119,15 +119,18 @@ export default function ChatApp() {
       return;
     }
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>~\-]/g, ""));
+    const clean = text.replace(/[*_`#>~]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
+    const u = new SpeechSynthesisUtterance(clean);
     u.rate = 1;
     u.pitch = voiceMode === "male" ? 0.85 : 1.15;
-    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
-    if (v) u.voice = v;
+    const allVoices = window.speechSynthesis.getVoices();
+    const v = pickVoice(allVoices, voiceMode);
+    if (v) { u.voice = v; u.lang = v.lang; }
     u.onend = () => setSpeakingIdx(null);
     u.onerror = () => setSpeakingIdx(null);
     setSpeakingIdx(idx);
-    window.speechSynthesis.speak(u);
+    // small delay helps Chrome after cancel()
+    setTimeout(() => window.speechSynthesis.speak(u), 60);
   };
 
   useEffect(() => {
