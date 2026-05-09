@@ -371,6 +371,15 @@ export default function ChatApp() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">AI</DropdownMenuLabel>
+                {AI_OPTIONS.map(ai => (
+                  <DropdownMenuItem key={ai.id} onClick={() => { setSelectedAI(ai.id); toast.success(`${ai.label} selected`); }}>
+                    <Bot className="h-4 w-4 mr-2 text-primary" />
+                    <span className="flex-1">{ai.label}</span>
+                    {selectedAI === ai.id && <Check className="h-4 w-4 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Mode</DropdownMenuLabel>
                 {MODES.map(m => {
                   const Icon = m.icon;
@@ -688,7 +697,7 @@ function pickVoice(voices: SpeechSynthesisVoice[], gender: "female" | "male"): S
       || (gender === "female" ? voices.find(v => v.lang.startsWith("en")) : voices.slice().reverse().find(v => v.lang.startsWith("en")));
 }
 
-function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice[]; value: string; onChange: (v: string) => void }) {
+function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice[]; value: VoiceMode; onChange: (v: VoiceMode) => void }) {
   const female = pickVoice(voices, "female");
   const male = pickVoice(voices, "male");
   const options = [
@@ -698,12 +707,11 @@ function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice
   return (
     <div className="grid grid-cols-2 gap-2">
       {options.map(o => {
-        const uri = o.voice?.voiceURI || "";
-        const active = value === uri && uri !== "";
+        const active = value === o.id;
         return (
           <button
             key={o.id}
-            onClick={() => uri && onChange(uri)}
+            onClick={() => onChange(o.id as VoiceMode)}
             disabled={!o.voice}
             className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/10" : "border-border hover:bg-accent"} disabled:opacity-50`}
           >
