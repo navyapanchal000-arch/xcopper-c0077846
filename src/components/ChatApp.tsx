@@ -4,7 +4,7 @@ import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
-  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
+  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles, Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,7 @@ import type { User } from "@supabase/supabase-js";
 
 type Msg = { role: "user" | "assistant"; content: string; attachments?: { name: string; type: string; url?: string }[] };
 type Chat = { id: string; title: string; messages: Msg[] };
+type VoiceMode = "female" | "male";
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -43,7 +44,7 @@ const PLACEHOLDERS = [
   "Try X COPPER Live",
 ];
 
-function uid() { return Math.random().toString(36).slice(2, 10); }
+function uid() { return crypto.randomUUID(); }
 
 export default function ChatApp() {
   const [chats, setChats] = useState<Chat[]>([{ id: uid(), title: "New chat", messages: [] }]);
