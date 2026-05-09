@@ -187,10 +187,10 @@ export default function ChatApp() {
       // Try update first; if not exists, insert
       const { data: existing } = await supabase.from("chats").select("id").eq("id", c.id).maybeSingle();
       if (existing) {
-        await supabase.from("chats").update({ title: c.title, messages: c.messages as any }).eq("id", c.id);
+        await supabase.from("chats").update({ title: c.title, messages: c.messages as any, updated_at: new Date().toISOString() }).eq("id", c.id);
       } else {
         const { data, error } = await supabase.from("chats").insert({
-          id: c.id, user_id: user.id, title: c.title, messages: c.messages as any,
+          id: c.id, user_id: user.id, title: c.title, messages: c.messages as any, updated_at: new Date().toISOString(),
         }).select("id").maybeSingle();
         if (error) console.error(error);
         if (data?.id && data.id !== c.id) {
