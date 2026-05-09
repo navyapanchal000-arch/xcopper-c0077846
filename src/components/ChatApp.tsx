@@ -105,6 +105,8 @@ export default function ChatApp() {
     { id: "grok", label: "Grok AI" },
   ];
 
+  const selectedVoiceURI = pickVoice(voices, voiceMode)?.voiceURI || "";
+
   const speak = (idx: number, text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       toast.error("Speech not supported in this browser");
@@ -119,7 +121,7 @@ export default function ChatApp() {
     const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>~\-]/g, ""));
     u.rate = 1;
     u.pitch = 1;
-    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === voiceURI);
+    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
     if (v) u.voice = v;
     u.onend = () => setSpeakingIdx(null);
     u.onerror = () => setSpeakingIdx(null);
@@ -242,7 +244,7 @@ export default function ChatApp() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: apiMessages, useWebSearch, mode }),
+        body: JSON.stringify({ messages: apiMessages, useWebSearch, mode, selectedAI }),
         signal: abortRef.current.signal,
       });
 
@@ -289,7 +291,7 @@ export default function ChatApp() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [active, attachments, useWebSearch, activeId, persistActive, mode]);
+  }, [active, attachments, useWebSearch, activeId, persistActive, mode, selectedAI]);
 
   const stopStream = () => abortRef.current?.abort();
 
