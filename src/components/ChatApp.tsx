@@ -598,7 +598,7 @@ export default function ChatApp() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">Voice (Listen & Live)</label>
-                <VoicePicker voices={voices} value={voiceURI} onChange={setVoiceURI} />
+                <VoicePicker voices={voices} value={voiceMode} onChange={setVoiceMode} />
                 <p className="text-[11px] text-muted-foreground mt-1">Choose a voice for read-aloud and Live X COPPER.</p>
               </div>
             </TabsContent>
@@ -638,7 +638,7 @@ export default function ChatApp() {
 
       <AuthDialog open={showAuth} onClose={() => setShowAuth(false)} />
 
-      <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceURI={voiceURI} />
+      <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceMode={voiceMode} voices={voices} selectedAI={selectedAI} />
     </div>
   );
 }
