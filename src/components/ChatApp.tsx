@@ -821,7 +821,7 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClose: () => void; language: string; voiceURI: string }) {
+function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { open: boolean; onClose: () => void; language: string; voiceMode: VoiceMode; voices: SpeechSynthesisVoice[]; selectedAI: string }) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
@@ -832,6 +832,7 @@ function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClos
   const recRef = useRef<any>(null);
   const camOnRef = useRef(false);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
+  const selectedVoiceURI = pickVoice(voices, voiceMode)?.voiceURI || "";
 
   const captureFrame = (): string | null => {
     const v = videoRef.current;
@@ -879,7 +880,7 @@ function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClos
     u.lang = langCode(language);
     u.rate = 1;
     u.pitch = 1;
-    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === voiceURI);
+    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
     if (v) u.voice = v;
     window.speechSynthesis.speak(u);
   };
@@ -924,6 +925,7 @@ function LiveMode({ open, onClose, language, voiceURI }: { open: boolean; onClos
               { role: "system", content: sysContent },
               { role: "user", content: userContent },
             ],
+            selectedAI,
           }),
         });
         const reader = resp.body!.getReader();
