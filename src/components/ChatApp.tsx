@@ -719,15 +719,14 @@ function VoicePicker({ voices, value, onChange }: { voices: SpeechSynthesisVoice
           <button
             key={o.id}
             onClick={() => onChange(o.id as VoiceMode)}
-            disabled={!o.voice}
-            className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/10" : "border-border hover:bg-accent"} disabled:opacity-50`}
+            className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition ${active ? "border-primary bg-primary/10" : "border-border hover:bg-accent"}`}
           >
             <div className="flex items-center gap-2 w-full">
               <Volume2 className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
               <span className="text-sm font-medium flex-1">{o.label}</span>
               {active && <Check className="h-4 w-4 text-primary" />}
             </div>
-            <span className="text-[11px] text-muted-foreground truncate w-full">{o.voice?.name || "Unavailable"}</span>
+            <span className="text-[11px] text-muted-foreground truncate w-full">{o.voice?.name || "Browser default"}</span>
           </button>
         );
       })}
