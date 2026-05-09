@@ -891,13 +891,16 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
 
   const speak = (text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const u = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.cancel();
+    const clean = text.replace(/[*_`#>~]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
+    const u = new SpeechSynthesisUtterance(clean);
     u.lang = langCode(language);
     u.rate = 1;
-    u.pitch = 1;
-    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
-    if (v) u.voice = v;
-    window.speechSynthesis.speak(u);
+    u.pitch = voiceMode === "male" ? 0.85 : 1.15;
+    const allVoices = window.speechSynthesis.getVoices();
+    const v = pickVoice(allVoices, voiceMode);
+    if (v) { u.voice = v; }
+    setTimeout(() => window.speechSynthesis.speak(u), 60);
   };
 
   const start = () => {
