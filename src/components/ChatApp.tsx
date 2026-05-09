@@ -119,15 +119,18 @@ export default function ChatApp() {
       return;
     }
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/[*_`#>~\-]/g, ""));
+    const clean = text.replace(/[*_`#>~]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
+    const u = new SpeechSynthesisUtterance(clean);
     u.rate = 1;
     u.pitch = voiceMode === "male" ? 0.85 : 1.15;
-    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
-    if (v) u.voice = v;
+    const allVoices = window.speechSynthesis.getVoices();
+    const v = pickVoice(allVoices, voiceMode);
+    if (v) { u.voice = v; u.lang = v.lang; }
     u.onend = () => setSpeakingIdx(null);
     u.onerror = () => setSpeakingIdx(null);
     setSpeakingIdx(idx);
-    window.speechSynthesis.speak(u);
+    // small delay helps Chrome after cancel()
+    setTimeout(() => window.speechSynthesis.speak(u), 60);
   };
 
   useEffect(() => {
@@ -374,7 +377,12 @@ export default function ChatApp() {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5 text-primary" /></Button>
+                <Button variant="ghost" size="sm" className="gap-1.5 px-2 h-9">
+                  <span className="text-xs font-medium text-primary max-w-[80px] truncate">
+                    {AI_OPTIONS.find(a => a.id === selectedAI)?.label || "X COPPER"}
+                  </span>
+                  <MoreVertical className="h-5 w-5 text-primary" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
@@ -883,13 +891,16 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
 
   const speak = (text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const u = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.cancel();
+    const clean = text.replace(/[*_`#>~]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
+    const u = new SpeechSynthesisUtterance(clean);
     u.lang = langCode(language);
     u.rate = 1;
-    u.pitch = 1;
-    const v = window.speechSynthesis.getVoices().find(x => x.voiceURI === selectedVoiceURI);
-    if (v) u.voice = v;
-    window.speechSynthesis.speak(u);
+    u.pitch = voiceMode === "male" ? 0.85 : 1.15;
+    const allVoices = window.speechSynthesis.getVoices();
+    const v = pickVoice(allVoices, voiceMode);
+    if (v) { u.voice = v; }
+    setTimeout(() => window.speechSynthesis.speak(u), 60);
   };
 
   const start = () => {
