@@ -62,9 +62,13 @@ export default function ChatApp() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("general");
-  const [voiceURI, setVoiceURI] = useState<string>(() => {
+  const [selectedAI, setSelectedAI] = useState<string>(() => {
     if (typeof window === "undefined") return "";
-    return localStorage.getItem("xcopper_voice") || "";
+    return localStorage.getItem("xcopper_ai") || "xcopper";
+  });
+  const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
+    if (typeof window === "undefined") return "female";
+    return (localStorage.getItem("xcopper_voice_mode") as VoiceMode) || "female";
   });
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
@@ -75,8 +79,11 @@ export default function ChatApp() {
     window.speechSynthesis.onvoiceschanged = load;
   }, []);
   useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem("xcopper_voice", voiceURI);
-  }, [voiceURI]);
+    if (typeof window !== "undefined") localStorage.setItem("xcopper_voice_mode", voiceMode);
+  }, [voiceMode]);
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem("xcopper_ai", selectedAI);
+  }, [selectedAI]);
 
   const MODES: { id: string; label: string; icon: any }[] = [
     { id: "general", label: "General", icon: Sparkles },
@@ -87,6 +94,15 @@ export default function ChatApp() {
     { id: "translate", label: "Translate", icon: Languages },
     { id: "brainstorm", label: "Brainstorm", icon: Lightbulb },
     { id: "math", label: "Math", icon: Sigma },
+  ];
+
+  const AI_OPTIONS: { id: string; label: string }[] = [
+    { id: "xcopper", label: "X COPPER" },
+    { id: "chatgpt", label: "ChatGPT" },
+    { id: "gemini", label: "Gemini" },
+    { id: "claude", label: "Claude AI" },
+    { id: "perplexity", label: "Perplexity AI" },
+    { id: "grok", label: "Grok AI" },
   ];
 
   const speak = (idx: number, text: string) => {
