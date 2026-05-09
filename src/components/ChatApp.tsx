@@ -377,7 +377,12 @@ export default function ChatApp() {
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5 text-primary" /></Button>
+                <Button variant="ghost" size="sm" className="gap-1.5 px-2 h-9">
+                  <span className="text-xs font-medium text-primary max-w-[80px] truncate">
+                    {AI_OPTIONS.find(a => a.id === selectedAI)?.label || "X COPPER"}
+                  </span>
+                  <MoreVertical className="h-5 w-5 text-primary" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
