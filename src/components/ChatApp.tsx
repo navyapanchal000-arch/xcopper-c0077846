@@ -972,7 +972,9 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
 
   const start = () => {
     // Unlock TTS during this user gesture so later speak() works on mobile/Chrome
+    const speechToken = ++liveSpeechTokenRef.current;
     unlockTTS();
+    prepareLiveSpeech(speechToken);
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { toast.error("Voice not supported"); return; }
     const r = new SR();
@@ -988,7 +990,7 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     };
     r.onend = async () => {
       setListening(false);
-      if (!final.trim()) return;
+      if (!final.trim()) { queuedLiveSpeechRef.current = null; return; }
       setResponse("…");
       try {
         const frame = camOnRef.current ? captureFrame() : null;
@@ -1035,7 +1037,17 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
             } catch { buf = line + "\n" + buf; break; }
           }
         }
-        speak(out);
+        if (speechToken !== liveSpeechTokenRef.current) return;
+        const cleanOut = cleanSpeechText(out);
+        const synth = getSpeechSynth();
+        if (cleanOut && synth && liveUtterRef.current && queuedLiveSpeechRef.current?.token === speechToken) {
+          liveUtterRef.current.text = cleanOut;
+          try { synth.resume(); } catch {}
+          synth.speak(liveUtterRef.current);
+        } else {
+          speak(out);
+        }
+        queuedLiveSpeechRef.current = null;
       } catch { toast.error("Live error"); }
     };
     recRef.current = r;
@@ -1044,15 +1056,19 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     r.start();
   };
 
-  const stop = () => recRef.current?.stop();
+  const stop = () => {
+    liveSpeechTokenRef.current += 1;
+    queuedLiveSpeechRef.current = null;
+    recRef.current?.stop();
+  };
 
   useEffect(() => {
     if (!open) {
+      liveSpeechTokenRef.current += 1;
+      queuedLiveSpeechRef.current = null;
       recRef.current?.stop?.();
       stopCamera();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      getSpeechSynth()?.cancel();
     }
   }, [open]);
 
