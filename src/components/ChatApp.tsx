@@ -880,18 +880,21 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<any>(null);
+  const queuedLiveSpeechRef = useRef<{ text: string; token: number } | null>(null);
+  const liveSpeechTokenRef = useRef(0);
   const camOnRef = useRef(false);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
   const selectedVoiceURI = pickVoice(voices, voiceMode)?.voiceURI || "";
   const liveUtterRef = useRef<SpeechSynthesisUtterance | null>(null);
   const ttsUnlockedRef = useRef(false);
   const unlockTTS = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = getSpeechSynth();
+    if (!synth) return;
     if (ttsUnlockedRef.current) return;
     try {
       const warm = new SpeechSynthesisUtterance(" ");
       warm.volume = 0;
-      window.speechSynthesis.speak(warm);
+      synth.speak(warm);
       ttsUnlockedRef.current = true;
     } catch {}
   };
@@ -937,31 +940,34 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   };
 
   const speak = (text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
+    const synth = getSpeechSynth();
+    if (!synth) return;
     if (liveUtterRef.current) {
       liveUtterRef.current.onend = null;
       liveUtterRef.current.onerror = null;
     }
     synth.cancel();
-    const clean = (text || "")
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/`[^`]*`/g, " ")
-      .replace(/!\[.*?\]\(.*?\)/g, " ")
-      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-      .replace(/[*_`#>~]/g, "")
-      .trim();
+    const clean = cleanSpeechText(text);
     if (!clean) return;
     const u = new SpeechSynthesisUtterance(clean);
-    u.rate = 1;
-    u.pitch = voiceMode === "male" ? 0.85 : 1.15;
-    const v = pickVoice(synth.getVoices(), voiceMode);
-    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = langCode(language); }
+    configureUtterance(u, voiceMode, langCode(language), synth);
     liveUtterRef.current = u;
-    setTimeout(() => {
-      try { synth.resume(); } catch {}
-      synth.speak(u);
-    }, 120);
+    try { synth.resume(); } catch {}
+    synth.speak(u);
+  };
+
+  const prepareLiveSpeech = (token: number) => {
+    const synth = getSpeechSynth();
+    queuedLiveSpeechRef.current = { text: "", token };
+    if (!synth) return;
+    if (liveUtterRef.current) {
+      liveUtterRef.current.onend = null;
+      liveUtterRef.current.onerror = null;
+    }
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(" ");
+    configureUtterance(u, voiceMode, langCode(language), synth);
+    liveUtterRef.current = u;
   };
 
   const start = () => {
