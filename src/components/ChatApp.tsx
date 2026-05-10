@@ -46,6 +46,34 @@ const PLACEHOLDERS = [
 
 function uid() { return crypto.randomUUID(); }
 
+const getSpeechSynth = (): SpeechSynthesis | null => {
+  if (typeof window === "undefined") return null;
+  return window.speechSynthesis || (globalThis as any).speechSynthesis || null;
+};
+
+const cleanSpeechText = (text: string) => (text || "")
+  .replace(/```[\s\S]*?```/g, " ")
+  .replace(/`[^`]*`/g, " ")
+  .replace(/!\[.*?\]\(.*?\)/g, " ")
+  .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+  .replace(/[*_`#>~]/g, "")
+  .replace(/https?:\/\/\S+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const configureUtterance = (
+  u: SpeechSynthesisUtterance,
+  voiceMode: VoiceMode,
+  fallbackLang = "en-US",
+  synth?: SpeechSynthesis | null,
+) => {
+  u.rate = 1;
+  u.pitch = voiceMode === "male" ? 0.85 : 1.15;
+  u.lang = fallbackLang;
+  const v = pickVoice(synth?.getVoices?.() || [], voiceMode);
+  if (v) { u.voice = v; u.lang = v.lang; }
+};
+
 export default function ChatApp() {
   const [chats, setChats] = useState<Chat[]>([{ id: uid(), title: "New chat", messages: [] }]);
   const [activeId, setActiveId] = useState(chats[0].id);
@@ -74,10 +102,11 @@ export default function ChatApp() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const load = () => setVoices(window.speechSynthesis.getVoices());
+    const synth = getSpeechSynth();
+    if (!synth) return;
+    const load = () => setVoices(synth.getVoices());
     load();
-    window.speechSynthesis.onvoiceschanged = load;
+    synth.onvoiceschanged = load;
   }, []);
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("xcopper_voice_mode", voiceMode);
@@ -110,11 +139,11 @@ export default function ChatApp() {
 
   const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speak = (idx: number, text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      toast.error("Speech not supported in this browser");
+    const synth = getSpeechSynth();
+    if (!synth) {
+      toast.error("Read aloud is unavailable in this browser. Open X COPPER in Chrome or Safari.");
       return;
     }
-    const synth = window.speechSynthesis;
     // Detach handlers from any previous utterance so its onend can't reset our new state
     if (utterRef.current) {
       utterRef.current.onend = null;
@@ -127,28 +156,16 @@ export default function ChatApp() {
       utterRef.current = null;
       return;
     }
-    const clean = (text || "")
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/`[^`]*`/g, " ")
-      .replace(/!\[.*?\]\(.*?\)/g, " ")
-      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-      .replace(/[*_`#>~]/g, "")
-      .trim();
+    const clean = cleanSpeechText(text);
     if (!clean) return;
     const u = new SpeechSynthesisUtterance(clean);
-    u.rate = 1;
-    u.pitch = voiceMode === "male" ? 0.85 : 1.15;
-    const v = pickVoice(synth.getVoices(), voiceMode);
-    if (v) { u.voice = v; u.lang = v.lang; }
+    configureUtterance(u, voiceMode, "en-US", synth);
     u.onend = () => { if (utterRef.current === u) { setSpeakingIdx(null); utterRef.current = null; } };
     u.onerror = () => { if (utterRef.current === u) { setSpeakingIdx(null); utterRef.current = null; } };
     utterRef.current = u;
     setSpeakingIdx(idx);
-    // Chrome needs a tick after cancel() before speak() will fire reliably
-    setTimeout(() => {
-      try { synth.resume(); } catch {}
-      synth.speak(u);
-    }, 120);
+    try { synth.resume(); } catch {}
+    synth.speak(u);
   };
 
   useEffect(() => {
