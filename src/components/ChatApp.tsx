@@ -1057,8 +1057,6 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   };
 
   const stop = () => {
-    liveSpeechTokenRef.current += 1;
-    queuedLiveSpeechRef.current = null;
     recRef.current?.stop();
   };
 
