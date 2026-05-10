@@ -46,6 +46,34 @@ const PLACEHOLDERS = [
 
 function uid() { return crypto.randomUUID(); }
 
+const getSpeechSynth = (): SpeechSynthesis | null => {
+  if (typeof window === "undefined") return null;
+  return window.speechSynthesis || (globalThis as any).speechSynthesis || null;
+};
+
+const cleanSpeechText = (text: string) => (text || "")
+  .replace(/```[\s\S]*?```/g, " ")
+  .replace(/`[^`]*`/g, " ")
+  .replace(/!\[.*?\]\(.*?\)/g, " ")
+  .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+  .replace(/[*_`#>~]/g, "")
+  .replace(/https?:\/\/\S+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const configureUtterance = (
+  u: SpeechSynthesisUtterance,
+  voiceMode: VoiceMode,
+  fallbackLang = "en-US",
+  synth?: SpeechSynthesis | null,
+) => {
+  u.rate = 1;
+  u.pitch = voiceMode === "male" ? 0.85 : 1.15;
+  u.lang = fallbackLang;
+  const v = pickVoice(synth?.getVoices?.() || [], voiceMode);
+  if (v) { u.voice = v; u.lang = v.lang; }
+};
+
 export default function ChatApp() {
   const [chats, setChats] = useState<Chat[]>([{ id: uid(), title: "New chat", messages: [] }]);
   const [activeId, setActiveId] = useState(chats[0].id);
@@ -74,10 +102,11 @@ export default function ChatApp() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const load = () => setVoices(window.speechSynthesis.getVoices());
+    const synth = getSpeechSynth();
+    if (!synth) return;
+    const load = () => setVoices(synth.getVoices());
     load();
-    window.speechSynthesis.onvoiceschanged = load;
+    synth.onvoiceschanged = load;
   }, []);
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("xcopper_voice_mode", voiceMode);
@@ -110,11 +139,11 @@ export default function ChatApp() {
 
   const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
   const speak = (idx: number, text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      toast.error("Speech not supported in this browser");
+    const synth = getSpeechSynth();
+    if (!synth) {
+      toast.error("Read aloud is unavailable in this browser. Open X COPPER in Chrome or Safari.");
       return;
     }
-    const synth = window.speechSynthesis;
     // Detach handlers from any previous utterance so its onend can't reset our new state
     if (utterRef.current) {
       utterRef.current.onend = null;
@@ -127,28 +156,16 @@ export default function ChatApp() {
       utterRef.current = null;
       return;
     }
-    const clean = (text || "")
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/`[^`]*`/g, " ")
-      .replace(/!\[.*?\]\(.*?\)/g, " ")
-      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-      .replace(/[*_`#>~]/g, "")
-      .trim();
+    const clean = cleanSpeechText(text);
     if (!clean) return;
     const u = new SpeechSynthesisUtterance(clean);
-    u.rate = 1;
-    u.pitch = voiceMode === "male" ? 0.85 : 1.15;
-    const v = pickVoice(synth.getVoices(), voiceMode);
-    if (v) { u.voice = v; u.lang = v.lang; }
+    configureUtterance(u, voiceMode, "en-US", synth);
     u.onend = () => { if (utterRef.current === u) { setSpeakingIdx(null); utterRef.current = null; } };
     u.onerror = () => { if (utterRef.current === u) { setSpeakingIdx(null); utterRef.current = null; } };
     utterRef.current = u;
     setSpeakingIdx(idx);
-    // Chrome needs a tick after cancel() before speak() will fire reliably
-    setTimeout(() => {
-      try { synth.resume(); } catch {}
-      synth.speak(u);
-    }, 120);
+    try { synth.resume(); } catch {}
+    synth.speak(u);
   };
 
   useEffect(() => {
@@ -863,18 +880,21 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<any>(null);
+  const queuedLiveSpeechRef = useRef<{ text: string; token: number } | null>(null);
+  const liveSpeechTokenRef = useRef(0);
   const camOnRef = useRef(false);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
   const selectedVoiceURI = pickVoice(voices, voiceMode)?.voiceURI || "";
   const liveUtterRef = useRef<SpeechSynthesisUtterance | null>(null);
   const ttsUnlockedRef = useRef(false);
   const unlockTTS = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = getSpeechSynth();
+    if (!synth) return;
     if (ttsUnlockedRef.current) return;
     try {
       const warm = new SpeechSynthesisUtterance(" ");
       warm.volume = 0;
-      window.speechSynthesis.speak(warm);
+      synth.speak(warm);
       ttsUnlockedRef.current = true;
     } catch {}
   };
@@ -920,36 +940,41 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   };
 
   const speak = (text: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
+    const synth = getSpeechSynth();
+    if (!synth) return;
     if (liveUtterRef.current) {
       liveUtterRef.current.onend = null;
       liveUtterRef.current.onerror = null;
     }
     synth.cancel();
-    const clean = (text || "")
-      .replace(/```[\s\S]*?```/g, " ")
-      .replace(/`[^`]*`/g, " ")
-      .replace(/!\[.*?\]\(.*?\)/g, " ")
-      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-      .replace(/[*_`#>~]/g, "")
-      .trim();
+    const clean = cleanSpeechText(text);
     if (!clean) return;
     const u = new SpeechSynthesisUtterance(clean);
-    u.rate = 1;
-    u.pitch = voiceMode === "male" ? 0.85 : 1.15;
-    const v = pickVoice(synth.getVoices(), voiceMode);
-    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = langCode(language); }
+    configureUtterance(u, voiceMode, langCode(language), synth);
     liveUtterRef.current = u;
-    setTimeout(() => {
-      try { synth.resume(); } catch {}
-      synth.speak(u);
-    }, 120);
+    try { synth.resume(); } catch {}
+    synth.speak(u);
+  };
+
+  const prepareLiveSpeech = (token: number) => {
+    const synth = getSpeechSynth();
+    queuedLiveSpeechRef.current = { text: "", token };
+    if (!synth) return;
+    if (liveUtterRef.current) {
+      liveUtterRef.current.onend = null;
+      liveUtterRef.current.onerror = null;
+    }
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(" ");
+    configureUtterance(u, voiceMode, langCode(language), synth);
+    liveUtterRef.current = u;
   };
 
   const start = () => {
     // Unlock TTS during this user gesture so later speak() works on mobile/Chrome
+    const speechToken = ++liveSpeechTokenRef.current;
     unlockTTS();
+    prepareLiveSpeech(speechToken);
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { toast.error("Voice not supported"); return; }
     const r = new SR();
@@ -965,7 +990,7 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     };
     r.onend = async () => {
       setListening(false);
-      if (!final.trim()) return;
+      if (!final.trim()) { queuedLiveSpeechRef.current = null; return; }
       setResponse("…");
       try {
         const frame = camOnRef.current ? captureFrame() : null;
@@ -1012,7 +1037,17 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
             } catch { buf = line + "\n" + buf; break; }
           }
         }
-        speak(out);
+        if (speechToken !== liveSpeechTokenRef.current) return;
+        const cleanOut = cleanSpeechText(out);
+        const synth = getSpeechSynth();
+        if (cleanOut && synth && liveUtterRef.current && queuedLiveSpeechRef.current?.token === speechToken) {
+          liveUtterRef.current.text = cleanOut;
+          try { synth.resume(); } catch {}
+          synth.speak(liveUtterRef.current);
+        } else {
+          speak(out);
+        }
+        queuedLiveSpeechRef.current = null;
       } catch { toast.error("Live error"); }
     };
     recRef.current = r;
@@ -1021,15 +1056,17 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     r.start();
   };
 
-  const stop = () => recRef.current?.stop();
+  const stop = () => {
+    recRef.current?.stop();
+  };
 
   useEffect(() => {
     if (!open) {
+      liveSpeechTokenRef.current += 1;
+      queuedLiveSpeechRef.current = null;
       recRef.current?.stop?.();
       stopCamera();
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      getSpeechSynth()?.cancel();
     }
   }, [open]);
 
