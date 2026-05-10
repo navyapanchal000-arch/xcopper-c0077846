@@ -866,6 +866,18 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   const camOnRef = useRef(false);
   useEffect(() => { camOnRef.current = camOn; }, [camOn]);
   const selectedVoiceURI = pickVoice(voices, voiceMode)?.voiceURI || "";
+  const liveUtterRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const ttsUnlockedRef = useRef(false);
+  const unlockTTS = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (ttsUnlockedRef.current) return;
+    try {
+      const warm = new SpeechSynthesisUtterance(" ");
+      warm.volume = 0;
+      window.speechSynthesis.speak(warm);
+      ttsUnlockedRef.current = true;
+    } catch {}
+  };
 
   const captureFrame = (): string | null => {
     const v = videoRef.current;
@@ -909,19 +921,35 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
 
   const speak = (text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const clean = text.replace(/[*_`#>~]/g, "").replace(/\[(.*?)\]\(.*?\)/g, "$1");
+    const synth = window.speechSynthesis;
+    if (liveUtterRef.current) {
+      liveUtterRef.current.onend = null;
+      liveUtterRef.current.onerror = null;
+    }
+    synth.cancel();
+    const clean = (text || "")
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/`[^`]*`/g, " ")
+      .replace(/!\[.*?\]\(.*?\)/g, " ")
+      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+      .replace(/[*_`#>~]/g, "")
+      .trim();
+    if (!clean) return;
     const u = new SpeechSynthesisUtterance(clean);
-    u.lang = langCode(language);
     u.rate = 1;
     u.pitch = voiceMode === "male" ? 0.85 : 1.15;
-    const allVoices = window.speechSynthesis.getVoices();
-    const v = pickVoice(allVoices, voiceMode);
-    if (v) { u.voice = v; }
-    setTimeout(() => window.speechSynthesis.speak(u), 60);
+    const v = pickVoice(synth.getVoices(), voiceMode);
+    if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = langCode(language); }
+    liveUtterRef.current = u;
+    setTimeout(() => {
+      try { synth.resume(); } catch {}
+      synth.speak(u);
+    }, 120);
   };
 
   const start = () => {
+    // Unlock TTS during this user gesture so later speak() works on mobile/Chrome
+    unlockTTS();
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { toast.error("Voice not supported"); return; }
     const r = new SR();
