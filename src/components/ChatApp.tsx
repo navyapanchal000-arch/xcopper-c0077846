@@ -401,29 +401,18 @@ export default function ChatApp() {
       <main className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between px-4 h-14 border-b border-border">
           <div className="flex items-center gap-2 font-semibold whitespace-nowrap">
-            <span className="text-transparent bg-clip-text whitespace-nowrap" style={{ backgroundImage: "var(--gradient-copper)" }}>X COPPER</span>
+            <span className="text-transparent bg-clip-text whitespace-nowrap" style={{ backgroundImage: "var(--gradient-copper)" }}>{settings.ai_name}</span>
+            {tier !== "free" && <TierBadge tier={tier} />}
           </div>
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 px-2 h-9">
-                  <span className="text-xs font-medium text-primary max-w-[80px] truncate">
-                    {AI_OPTIONS.find(a => a.id === selectedAI)?.label || "X COPPER"}
-                  </span>
+                <Button variant="ghost" size="icon" className="h-9 w-9" title="Menu">
                   <MoreVertical className="h-5 w-5 text-primary" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">AI</DropdownMenuLabel>
-                {AI_OPTIONS.map(ai => (
-                  <DropdownMenuItem key={ai.id} onClick={() => { setSelectedAI(ai.id); toast.success(`${ai.label} selected`); }}>
-                    <Bot className="h-4 w-4 mr-2 text-primary" />
-                    <span className="flex-1">{ai.label}</span>
-                    {selectedAI === ai.id && <Check className="h-4 w-4 text-primary" />}
-                  </DropdownMenuItem>
-                ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Mode</DropdownMenuLabel>
                 {MODES.map(m => {
