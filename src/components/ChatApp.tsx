@@ -190,6 +190,42 @@ export default function ChatApp() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Membership tier + master role (realtime)
+  const loadProfile = useCallback(async () => {
+    if (!user) { setTier("free"); setIsMaster(false); return; }
+    const db = supabase as any;
+    const { data: p } = await db.from("profiles").select("tier,tier_expires_at").eq("id", user.id).maybeSingle();
+    setTier(effectiveTier(p?.tier, p?.tier_expires_at));
+    const { data: r } = await db.from("user_roles").select("role").eq("user_id", user.id).eq("role", "master").maybeSingle();
+    setIsMaster(!!r);
+  }, [user]);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  useEffect(() => {
+    if (!user) return;
+    const db = supabase as any;
+    const ch = db
+      .channel(`profile_rt_${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, (p: any) => {
+        setTier(effectiveTier(p.new?.tier, p.new?.tier_expires_at));
+      })
+      .subscribe();
+    return () => { db.removeChannel(ch); };
+  }, [user]);
+
+  // Log the visit so the master can see activity
+  const visitLogged = useRef(false);
+  useEffect(() => {
+    if (visitLogged.current || typeof window === "undefined") return;
+    visitLogged.current = true;
+    (supabase as any).from("visits").insert({
+      user_id: user?.id ?? null,
+      email: user?.email ?? null,
+      user_agent: navigator.userAgent,
+    }).then(() => {}, () => {});
+  }, [user]);
+
   // Load history when logged in
   const loadHistory = useCallback(async () => {
     if (!user) return;
