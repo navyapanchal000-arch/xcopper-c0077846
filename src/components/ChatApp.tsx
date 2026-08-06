@@ -4,7 +4,8 @@ import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
-  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles, Bot,
+  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
+  ShieldCheck, Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +25,9 @@ import { XLogo } from "@/components/XLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import type { User } from "@supabase/supabase-js";
+import { useAppSettings, effectiveTier, TIER_LIMITS, type Tier } from "@/lib/appSettings";
+import { MasterPanel, TierBadge } from "@/components/MasterPanel";
+import { PricingDialog } from "@/components/PricingDialog";
 
 type Msg = { role: "user" | "assistant"; content: string; attachments?: { name: string; type: string; url?: string }[] };
 type Chat = { id: string; title: string; messages: Msg[] };
@@ -38,7 +42,7 @@ const LANGUAGES = [
 
 const PLACEHOLDERS = [
   "Ask X COPPER",
-  "MADE BY NAVYA PANCHAL",
+  "X COPPER by NAVYA PANCHAL",
   "Ask anything...",
   "What's on your mind?",
   "Try X COPPER Live",
@@ -90,10 +94,12 @@ export default function ChatApp() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [speakingIdx, setSpeakingIdx] = useState<number | null>(null);
   const [mode, setMode] = useState<string>("general");
-  const [selectedAI, setSelectedAI] = useState<string>(() => {
-    if (typeof window === "undefined") return "xcopper";
-    return localStorage.getItem("xcopper_ai") || "xcopper";
-  });
+  const selectedAI = "xcopper";
+  const settings = useAppSettings();
+  const [tier, setTier] = useState<Tier>("free");
+  const [isMaster, setIsMaster] = useState(false);
+  const [showMaster, setShowMaster] = useState(false);
+  const [showPricing, setShowPricing] = useState(false);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
     if (typeof window === "undefined") return "female";
     const saved = localStorage.getItem("xcopper_voice_mode");
@@ -111,9 +117,6 @@ export default function ChatApp() {
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem("xcopper_voice_mode", voiceMode);
   }, [voiceMode]);
-  useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem("xcopper_ai", selectedAI);
-  }, [selectedAI]);
 
   const MODES: { id: string; label: string; icon: any }[] = [
     { id: "general", label: "General", icon: Sparkles },
@@ -124,15 +127,6 @@ export default function ChatApp() {
     { id: "translate", label: "Translate", icon: Languages },
     { id: "brainstorm", label: "Brainstorm", icon: Lightbulb },
     { id: "math", label: "Math", icon: Sigma },
-  ];
-
-  const AI_OPTIONS: { id: string; label: string }[] = [
-    { id: "xcopper", label: "X COPPER" },
-    { id: "chatgpt", label: "ChatGPT" },
-    { id: "gemini", label: "Gemini" },
-    { id: "claude", label: "Claude AI" },
-    { id: "perplexity", label: "Perplexity AI" },
-    { id: "grok", label: "Grok AI" },
   ];
 
   const selectedVoiceURI = pickVoice(voices, voiceMode)?.voiceURI || "";
@@ -195,6 +189,42 @@ export default function ChatApp() {
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // Membership tier + master role (realtime)
+  const loadProfile = useCallback(async () => {
+    if (!user) { setTier("free"); setIsMaster(false); return; }
+    const db = supabase as any;
+    const { data: p } = await db.from("profiles").select("tier,tier_expires_at").eq("id", user.id).maybeSingle();
+    setTier(effectiveTier(p?.tier, p?.tier_expires_at));
+    const { data: r } = await db.from("user_roles").select("role").eq("user_id", user.id).eq("role", "master").maybeSingle();
+    setIsMaster(!!r);
+  }, [user]);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  useEffect(() => {
+    if (!user) return;
+    const db = supabase as any;
+    const ch = db
+      .channel(`profile_rt_${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` }, (p: any) => {
+        setTier(effectiveTier(p.new?.tier, p.new?.tier_expires_at));
+      })
+      .subscribe();
+    return () => { db.removeChannel(ch); };
+  }, [user]);
+
+  // Log the visit so the master can see activity
+  const visitLogged = useRef(false);
+  useEffect(() => {
+    if (visitLogged.current || typeof window === "undefined") return;
+    visitLogged.current = true;
+    (supabase as any).from("visits").insert({
+      user_id: user?.id ?? null,
+      email: user?.email ?? null,
+      user_agent: navigator.userAgent,
+    }).then(() => {}, () => {});
+  }, [user]);
 
   // Load history when logged in
   const loadHistory = useCallback(async () => {
@@ -369,13 +399,36 @@ export default function ChatApp() {
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>, kind: "file" | "image" | "camera") => {
     const f = e.target.files?.[0];
     if (!f) return;
+    e.target.value = "";
+    if (!user) {
+      toast.error("Sign in to upload files and images.");
+      setShowAuth(true);
+      return;
+    }
+    const limits = TIER_LIMITS[tier];
+    const isImage = (f.type || "").startsWith("image/");
+    const isVideo = (f.type || "").startsWith("video/");
+    if (!isImage) {
+      if (isVideo && !limits.video) { toast.error("Video upload is available on Premium and Platinum."); setShowPricing(true); return; }
+      if (!isVideo && !limits.docs) { toast.error("PDF & document upload is available on Premium and Platinum."); setShowPricing(true); return; }
+    }
+    if (isImage) {
+      const alreadyInChat = active.messages.reduce(
+        (n, m) => n + (m.attachments?.filter(a => a.type.startsWith("image/")).length || 0), 0,
+      );
+      const pending = attachments.filter(a => a.type.startsWith("image/")).length;
+      if (alreadyInChat + pending >= limits.images) {
+        toast.error(`Your plan allows ${limits.images} images per chat.`);
+        setShowPricing(true);
+        return;
+      }
+    }
     if (f.size > 5 * 1024 * 1024) { toast.error("Max 5 MB"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       setAttachments(a => [...a, { name: f.name, type: f.type || (kind === "file" ? "application/octet-stream" : "image/png"), data: reader.result as string }]);
     };
     reader.readAsDataURL(f);
-    e.target.value = "";
   };
 
   const empty = active.messages.length === 0;
@@ -401,35 +454,24 @@ export default function ChatApp() {
             </div>
           ))}
         </div>
-        <div className="p-3 border-t border-sidebar-border text-xs text-muted-foreground">X COPPER · v1.0</div>
+        <div className="p-3 border-t border-sidebar-border text-xs text-muted-foreground">{settings.ai_name} · v1.0</div>
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between px-4 h-14 border-b border-border">
           <div className="flex items-center gap-2 font-semibold whitespace-nowrap">
-            <span className="text-transparent bg-clip-text whitespace-nowrap" style={{ backgroundImage: "var(--gradient-copper)" }}>X COPPER</span>
+            <span className="text-transparent bg-clip-text whitespace-nowrap" style={{ backgroundImage: "var(--gradient-copper)" }}>{settings.ai_name}</span>
+            {tier !== "free" && <TierBadge tier={tier} />}
           </div>
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 px-2 h-9">
-                  <span className="text-xs font-medium text-primary max-w-[80px] truncate">
-                    {AI_OPTIONS.find(a => a.id === selectedAI)?.label || "X COPPER"}
-                  </span>
+                <Button variant="ghost" size="icon" className="h-9 w-9" title="Menu">
                   <MoreVertical className="h-5 w-5 text-primary" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Menu</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">AI</DropdownMenuLabel>
-                {AI_OPTIONS.map(ai => (
-                  <DropdownMenuItem key={ai.id} onClick={() => { setSelectedAI(ai.id); toast.success(`${ai.label} selected`); }}>
-                    <Bot className="h-4 w-4 mr-2 text-primary" />
-                    <span className="flex-1">{ai.label}</span>
-                    {selectedAI === ai.id && <Check className="h-4 w-4 text-primary" />}
-                  </DropdownMenuItem>
-                ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Mode</DropdownMenuLabel>
                 {MODES.map(m => {
@@ -452,6 +494,14 @@ export default function ChatApp() {
                 <DropdownMenuItem onClick={newChat}>
                   <Plus className="h-4 w-4 mr-2" /> New chat
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowPricing(true)}>
+                  <Crown className="h-4 w-4 mr-2 text-primary" /> Plans & pricing
+                </DropdownMenuItem>
+                {isMaster && (
+                  <DropdownMenuItem onClick={() => setShowMaster(true)}>
+                    <ShieldCheck className="h-4 w-4 mr-2 text-primary" /> Master control
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenu>
@@ -464,7 +514,11 @@ export default function ChatApp() {
                 {user ? (
                   <>
                     <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+                    <DropdownMenuLabel className="pt-0"><TierBadge tier={tier} /></DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowPricing(true)}>
+                      <Crown className="h-4 w-4 mr-2 text-primary" /> Upgrade plan
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={async () => { await supabase.auth.signOut(); toast.success("Signed out"); }}>
                       <LogOut className="h-4 w-4 mr-2" /> Sign out
                     </DropdownMenuItem>
@@ -483,10 +537,11 @@ export default function ChatApp() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="text-center">
-                  <span className="text-transparent bg-clip-text font-bold tracking-wider" style={{ backgroundImage: "var(--gradient-copper)" }}>
-                    MADE BY NAVYA PANCHAL
+                <DropdownMenuLabel className="text-center space-y-1.5">
+                  <span className="block text-transparent bg-clip-text font-bold tracking-wider" style={{ backgroundImage: "var(--gradient-copper)" }}>
+                    {settings.ai_name} by NAVYA PANCHAL
                   </span>
+                  <span className="block"><TierBadge tier={tier} /></span>
                 </DropdownMenuLabel>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -498,7 +553,7 @@ export default function ChatApp() {
             <div className="h-full flex flex-col items-center justify-center px-4">
               <XLogo className="h-28 w-28 mb-4 drop-shadow-[0_0_30px_oklch(0.68_0.13_45/0.4)]" />
               <h1 className="text-4xl md:text-5xl font-bold tracking-wide text-transparent bg-clip-text" style={{ backgroundImage: "var(--gradient-copper)" }}>
-                X COPPER
+                {settings.ai_name}
               </h1>
               <p className="mt-3 text-muted-foreground text-sm">Ask anything. Fast answers powered by AI.</p>
             </div>
@@ -622,7 +677,7 @@ export default function ChatApp() {
                 </div>
               </div>
             </div>
-            <p className="text-[11px] text-center text-muted-foreground mt-2">X COPPER can make mistakes. Verify important info.</p>
+            <p className="text-[11px] text-center text-muted-foreground mt-2">{settings.ai_name} by NAVYA PANCHAL · can make mistakes. Verify important info.</p>
           </div>
         </div>
 
@@ -697,6 +752,10 @@ export default function ChatApp() {
       </Dialog>
 
       <AuthDialog open={showAuth} onClose={() => setShowAuth(false)} />
+
+      <PricingDialog open={showPricing} onClose={() => setShowPricing(false)} current={tier} />
+
+      {isMaster && <MasterPanel open={showMaster} onClose={() => setShowMaster(false)} />}
 
       <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceMode={voiceMode} voices={voices} selectedAI={selectedAI} />
     </div>
