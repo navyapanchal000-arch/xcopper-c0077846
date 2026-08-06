@@ -753,6 +753,10 @@ export default function ChatApp() {
 
       <AuthDialog open={showAuth} onClose={() => setShowAuth(false)} />
 
+      <PricingDialog open={showPricing} onClose={() => setShowPricing(false)} current={tier} />
+
+      {isMaster && <MasterPanel open={showMaster} onClose={() => setShowMaster(false)} />}
+
       <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceMode={voiceMode} voices={voices} selectedAI={selectedAI} />
     </div>
   );
