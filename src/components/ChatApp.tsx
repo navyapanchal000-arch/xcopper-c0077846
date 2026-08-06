@@ -399,13 +399,36 @@ export default function ChatApp() {
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>, kind: "file" | "image" | "camera") => {
     const f = e.target.files?.[0];
     if (!f) return;
+    e.target.value = "";
+    if (!user) {
+      toast.error("Sign in to upload files and images.");
+      setShowAuth(true);
+      return;
+    }
+    const limits = TIER_LIMITS[tier];
+    const isImage = (f.type || "").startsWith("image/");
+    const isVideo = (f.type || "").startsWith("video/");
+    if (!isImage) {
+      if (isVideo && !limits.video) { toast.error("Video upload is available on Premium and Platinum."); setShowPricing(true); return; }
+      if (!isVideo && !limits.docs) { toast.error("PDF & document upload is available on Premium and Platinum."); setShowPricing(true); return; }
+    }
+    if (isImage) {
+      const alreadyInChat = active.messages.reduce(
+        (n, m) => n + (m.attachments?.filter(a => a.type.startsWith("image/")).length || 0), 0,
+      );
+      const pending = attachments.filter(a => a.type.startsWith("image/")).length;
+      if (alreadyInChat + pending >= limits.images) {
+        toast.error(`Your plan allows ${limits.images} images per chat.`);
+        setShowPricing(true);
+        return;
+      }
+    }
     if (f.size > 5 * 1024 * 1024) { toast.error("Max 5 MB"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       setAttachments(a => [...a, { name: f.name, type: f.type || (kind === "file" ? "application/octet-stream" : "image/png"), data: reader.result as string }]);
     };
     reader.readAsDataURL(f);
-    e.target.value = "";
   };
 
   const empty = active.messages.length === 0;
