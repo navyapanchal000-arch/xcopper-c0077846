@@ -454,7 +454,7 @@ export default function ChatApp() {
             </div>
           ))}
         </div>
-        <div className="p-3 border-t border-sidebar-border text-xs text-muted-foreground">X COPPER · v1.0</div>
+        <div className="p-3 border-t border-sidebar-border text-xs text-muted-foreground">{settings.ai_name} · v1.0</div>
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0">
@@ -553,7 +553,7 @@ export default function ChatApp() {
             <div className="h-full flex flex-col items-center justify-center px-4">
               <XLogo className="h-28 w-28 mb-4 drop-shadow-[0_0_30px_oklch(0.68_0.13_45/0.4)]" />
               <h1 className="text-4xl md:text-5xl font-bold tracking-wide text-transparent bg-clip-text" style={{ backgroundImage: "var(--gradient-copper)" }}>
-                X COPPER
+                {settings.ai_name}
               </h1>
               <p className="mt-3 text-muted-foreground text-sm">Ask anything. Fast answers powered by AI.</p>
             </div>
@@ -677,7 +677,7 @@ export default function ChatApp() {
                 </div>
               </div>
             </div>
-            <p className="text-[11px] text-center text-muted-foreground mt-2">X COPPER can make mistakes. Verify important info.</p>
+            <p className="text-[11px] text-center text-muted-foreground mt-2">{settings.ai_name} by NAVYA PANCHAL · can make mistakes. Verify important info.</p>
           </div>
         </div>
 
