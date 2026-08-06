@@ -4,7 +4,8 @@ import {
   Plus, Mic, Globe, Paperclip, Image as ImageIcon, Send,
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
-  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles, Bot,
+  Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
+  ShieldCheck, Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +25,9 @@ import { XLogo } from "@/components/XLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import type { User } from "@supabase/supabase-js";
+import { useAppSettings, effectiveTier, TIER_LIMITS, type Tier } from "@/lib/appSettings";
+import { MasterPanel, TierBadge } from "@/components/MasterPanel";
+import { PricingDialog } from "@/components/PricingDialog";
 
 type Msg = { role: "user" | "assistant"; content: string; attachments?: { name: string; type: string; url?: string }[] };
 type Chat = { id: string; title: string; messages: Msg[] };
@@ -38,7 +42,7 @@ const LANGUAGES = [
 
 const PLACEHOLDERS = [
   "Ask X COPPER",
-  "MADE BY NAVYA PANCHAL",
+  "X COPPER by NAVYA PANCHAL",
   "Ask anything...",
   "What's on your mind?",
   "Try X COPPER Live",
