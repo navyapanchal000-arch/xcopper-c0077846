@@ -435,6 +435,14 @@ export default function ChatApp() {
                 <DropdownMenuItem onClick={newChat}>
                   <Plus className="h-4 w-4 mr-2" /> New chat
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowPricing(true)}>
+                  <Crown className="h-4 w-4 mr-2 text-primary" /> Plans & pricing
+                </DropdownMenuItem>
+                {isMaster && (
+                  <DropdownMenuItem onClick={() => setShowMaster(true)}>
+                    <ShieldCheck className="h-4 w-4 mr-2 text-primary" /> Master control
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenu>
@@ -447,7 +455,11 @@ export default function ChatApp() {
                 {user ? (
                   <>
                     <DropdownMenuLabel className="truncate">{user.email}</DropdownMenuLabel>
+                    <DropdownMenuLabel className="pt-0"><TierBadge tier={tier} /></DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowPricing(true)}>
+                      <Crown className="h-4 w-4 mr-2 text-primary" /> Upgrade plan
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={async () => { await supabase.auth.signOut(); toast.success("Signed out"); }}>
                       <LogOut className="h-4 w-4 mr-2" /> Sign out
                     </DropdownMenuItem>
@@ -466,10 +478,11 @@ export default function ChatApp() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="text-center">
-                  <span className="text-transparent bg-clip-text font-bold tracking-wider" style={{ backgroundImage: "var(--gradient-copper)" }}>
-                    MADE BY NAVYA PANCHAL
+                <DropdownMenuLabel className="text-center space-y-1.5">
+                  <span className="block text-transparent bg-clip-text font-bold tracking-wider" style={{ backgroundImage: "var(--gradient-copper)" }}>
+                    {settings.ai_name} by NAVYA PANCHAL
                   </span>
+                  <span className="block"><TierBadge tier={tier} /></span>
                 </DropdownMenuLabel>
               </DropdownMenuContent>
             </DropdownMenu>
