@@ -481,6 +481,11 @@ export default function ChatApp() {
 
   const empty = active.messages.length === 0;
 
+  // Master user gets their own full console — no chat, no AI.
+  if (isMaster) {
+    return <MasterConsole email={user?.email} onSignOut={() => { supabase.auth.signOut(); }} />;
+  }
+
   return (
     <div className="flex h-screen bg-background text-foreground">
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar">
