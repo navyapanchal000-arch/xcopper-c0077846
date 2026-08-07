@@ -111,6 +111,7 @@ export default function ChatApp() {
   const [isMaster, setIsMaster] = useState(false);
   const [showMaster, setShowMaster] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
+  const [genImage, setGenImage] = useState(false);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
     if (typeof window === "undefined") return "female";
     const saved = localStorage.getItem("xcopper_voice_mode");
