@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Crown, Gem, RefreshCw, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
-import { toast } from "sonner";
+import { showAlert } from "@/components/AlertPopup";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppSettings, DEFAULT_SETTINGS, effectiveTier } from "@/lib/appSettings";
 

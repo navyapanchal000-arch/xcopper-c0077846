@@ -20,13 +20,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { toast } from "sonner";
+import { showAlert } from "@/components/AlertPopup";
 import { XLogo } from "@/components/XLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import type { User } from "@supabase/supabase-js";
 import { useAppSettings, effectiveTier, TIER_LIMITS, type Tier } from "@/lib/appSettings";
-import { MasterPanel, TierBadge } from "@/components/MasterPanel";
+import { MasterConsole, TierBadge } from "@/components/MasterPanel";
 import { PricingDialog } from "@/components/PricingDialog";
 
 type Msg = { role: "user" | "assistant"; content: string; attachments?: { name: string; type: string; url?: string }[] };
