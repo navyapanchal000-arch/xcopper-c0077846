@@ -135,7 +135,7 @@ export default function ChatApp() {
   const speak = (idx: number, text: string) => {
     const synth = getSpeechSynth();
     if (!synth) {
-      toast.error("Read aloud is unavailable in this browser. Open X COPPER in Chrome or Safari.");
+      showAlert("Read aloud is unavailable in this browser. Open X COPPER in Chrome or Safari.");
       return;
     }
     // Detach handlers from any previous utterance so its onend can't reset our new state
@@ -330,7 +330,7 @@ export default function ChatApp() {
         signal: abortRef.current.signal,
       });
 
-      if (resp.status === 429) { toast.error("Rate limit — please wait a moment."); setIsLoading(false); return; }
+      if (resp.status === 429) { showAlert("Rate limit — please wait a moment."); setIsLoading(false); return; }
       if (resp.status === 402) { setShowCredits(true); setIsLoading(false); return; }
       if (!resp.ok || !resp.body) throw new Error("Stream failed");
 
@@ -368,7 +368,7 @@ export default function ChatApp() {
       const finalChat: Chat = { id: activeId, title: newTitle, messages: [...newMessages, { role: "assistant", content: assistant }] };
       persistActive(finalChat);
     } catch (e: any) {
-      if (e.name !== "AbortError") { console.error(e); toast.error("Something went wrong. Try again."); }
+      if (e.name !== "AbortError") { console.error(e); showAlert("Something went wrong. Try again."); }
     } finally {
       setIsLoading(false);
       abortRef.current = null;
@@ -382,7 +382,7 @@ export default function ChatApp() {
   const [recording, setRecording] = useState(false);
   const toggleVoice = () => {
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { toast.error("Voice input not supported in this browser"); return; }
+    if (!SR) { showAlert("Voice input not supported in this browser"); return; }
     if (recording) { recRef.current?.stop(); return; }
     const r = new SR();
     r.lang = "en-US"; r.interimResults = true; r.continuous = false;
@@ -407,7 +407,7 @@ export default function ChatApp() {
     if (!f) return;
     e.target.value = "";
     if (!user) {
-      toast.error("Sign in to upload files and images.");
+      showAlert("Sign in to upload files and images.");
       setShowAuth(true);
       return;
     }
@@ -415,8 +415,8 @@ export default function ChatApp() {
     const isImage = (f.type || "").startsWith("image/");
     const isVideo = (f.type || "").startsWith("video/");
     if (!isImage) {
-      if (isVideo && !limits.video) { toast.error("Video upload is available on Premium and Platinum."); setShowPricing(true); return; }
-      if (!isVideo && !limits.docs) { toast.error("PDF & document upload is available on Premium and Platinum."); setShowPricing(true); return; }
+      if (isVideo && !limits.video) { showAlert("Video upload is available on Premium and Platinum."); setShowPricing(true); return; }
+      if (!isVideo && !limits.docs) { showAlert("PDF & document upload is available on Premium and Platinum."); setShowPricing(true); return; }
     }
     if (isImage) {
       const alreadyInChat = active.messages.reduce(
@@ -424,12 +424,12 @@ export default function ChatApp() {
       );
       const pending = attachments.filter(a => a.type.startsWith("image/")).length;
       if (alreadyInChat + pending >= limits.images) {
-        toast.error(`Your plan allows ${limits.images} images per chat.`);
+        showAlert(`Your plan allows ${limits.images} images per chat.`);
         setShowPricing(true);
         return;
       }
     }
-    if (f.size > 5 * 1024 * 1024) { toast.error("Max 5 MB"); return; }
+    if (f.size > 5 * 1024 * 1024) { showAlert("Max 5 MB"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       setAttachments(a => [...a, { name: f.name, type: f.type || (kind === "file" ? "application/octet-stream" : "image/png"), data: reader.result as string }]);
@@ -483,7 +483,7 @@ export default function ChatApp() {
                 {MODES.map(m => {
                   const Icon = m.icon;
                   return (
-                    <DropdownMenuItem key={m.id} onClick={() => { setMode(m.id); toast.success(`${m.label} mode`); }}>
+                    <DropdownMenuItem key={m.id} onClick={() => { setMode(m.id); showAlert(`${m.label} mode`); }}>
                       <Icon className="h-4 w-4 mr-2 text-primary" />
                       <span className="flex-1">{m.label}</span>
                       {mode === m.id && <Check className="h-4 w-4 text-primary" />}
@@ -525,7 +525,7 @@ export default function ChatApp() {
                     <DropdownMenuItem onClick={() => setShowPricing(true)}>
                       <Crown className="h-4 w-4 mr-2 text-primary" /> Upgrade plan
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={async () => { await supabase.auth.signOut(); toast.success("Signed out"); }}>
+                    <DropdownMenuItem onClick={async () => { await supabase.auth.signOut(); showAlert("Signed out"); }}>
                       <LogOut className="h-4 w-4 mr-2" /> Sign out
                     </DropdownMenuItem>
                   </>
@@ -853,26 +853,26 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const google = async () => {
     setBusy(true);
     const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (r.error) { toast.error("Google sign-in failed"); setBusy(false); return; }
+    if (r.error) { showAlert("Google sign-in failed"); setBusy(false); return; }
     if (r.redirected) return;
-    toast.success("Signed in"); onClose();
+    showAlert("Signed in"); onClose();
     setBusy(false);
   };
 
   const submit = async () => {
-    if (!email || !password) { toast.error("Enter email and password"); return; }
+    if (!email || !password) { showAlert("Enter email and password"); return; }
     setBusy(true);
     if (mode === "signup") {
       const { error } = await supabase.auth.signUp({
         email, password,
         options: { emailRedirectTo: window.location.origin },
       });
-      if (error) toast.error(error.message);
-      else { toast.success("Check your email to verify your account."); onClose(); }
+      if (error) showAlert(error.message);
+      else { showAlert("Check your email to verify your account."); onClose(); }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) toast.error(error.message);
-      else { toast.success("Signed in"); onClose(); }
+      if (error) showAlert(error.message);
+      else { showAlert("Signed in"); onClose(); }
     }
     setBusy(false);
   };
@@ -991,7 +991,7 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
       streamRef.current = s;
       if (videoRef.current) { videoRef.current.srcObject = s; await videoRef.current.play(); }
       setCamOn(true);
-    } catch { toast.error("Camera permission denied"); }
+    } catch { showAlert("Camera permission denied"); }
   };
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -1041,7 +1041,7 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     unlockTTS();
     prepareLiveSpeech(speechToken);
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { toast.error("Voice not supported"); return; }
+    if (!SR) { showAlert("Voice not supported"); return; }
     const r = new SR();
     r.lang = langCode(language); r.continuous = false; r.interimResults = true;
     let final = "";
@@ -1113,7 +1113,7 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
           speak(out);
         }
         queuedLiveSpeechRef.current = null;
-      } catch { toast.error("Live error"); }
+      } catch { showAlert("Live error"); }
     };
     recRef.current = r;
     setTranscript(""); setResponse("");

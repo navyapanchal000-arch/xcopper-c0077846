@@ -47,7 +47,7 @@ function MasterBody({ open }: { open: boolean }) {
       .select("id,email,display_name,tier,tier_expires_at,created_at")
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) { toast.error(error.message); return; }
+    if (error) { showAlert(error.message); return; }
     setUsers(data || []);
   }, []);
 
@@ -79,8 +79,8 @@ function MasterBody({ open }: { open: boolean }) {
     const m = Math.max(0, parseInt(months || "1", 10) || 1);
     const expires = tier === "free" ? null : new Date(Date.now() + m * 30 * 24 * 60 * 60 * 1000).toISOString();
     const { error } = await db().from("profiles").update({ tier, tier_expires_at: expires }).eq("id", u.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`${u.email} is now ${tier.toUpperCase()}`);
+    if (error) { showAlert(error.message); return; }
+    showAlert(`${u.email} is now ${tier.toUpperCase()}`);
     loadUsers();
     setSelected({ ...u, tier, tier_expires_at: expires });
   };
@@ -93,8 +93,8 @@ function MasterBody({ open }: { open: boolean }) {
       platinum_price: Number(platinum) || 0,
       updated_at: new Date().toISOString(),
     }).eq("id", 1);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Saved — live for every user");
+    if (error) { showAlert(error.message); return; }
+    showAlert("Saved — live for every user");
   };
 
   const filtered = users.filter((u) =>
