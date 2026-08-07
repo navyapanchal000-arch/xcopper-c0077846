@@ -200,10 +200,7 @@ export default function ChatApp() {
     setTier(effectiveTier(p?.tier, p?.tier_expires_at));
     const { data: r } = await db.from("user_roles").select("role").eq("user_id", user.id).eq("role", "master").maybeSingle();
     setIsMaster(!!r);
-    if (r && justSignedIn.current) {
-      justSignedIn.current = false;
-      setShowMaster(true);
-    }
+    if (r) justSignedIn.current = false;
   }, [user]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
@@ -483,7 +480,7 @@ export default function ChatApp() {
                 {MODES.map(m => {
                   const Icon = m.icon;
                   return (
-                    <DropdownMenuItem key={m.id} onClick={() => { setMode(m.id); showAlert(`${m.label} mode`); }}>
+                    <DropdownMenuItem key={m.id} onClick={() => setMode(m.id)}>
                       <Icon className="h-4 w-4 mr-2 text-primary" />
                       <span className="flex-1">{m.label}</span>
                       {mode === m.id && <Check className="h-4 w-4 text-primary" />}
@@ -503,11 +500,6 @@ export default function ChatApp() {
                 <DropdownMenuItem onClick={() => setShowPricing(true)}>
                   <Crown className="h-4 w-4 mr-2 text-primary" /> Plans & pricing
                 </DropdownMenuItem>
-                {isMaster && (
-                  <DropdownMenuItem onClick={() => setShowMaster(true)}>
-                    <ShieldCheck className="h-4 w-4 mr-2 text-primary" /> Master control
-                  </DropdownMenuItem>
-                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenu>
