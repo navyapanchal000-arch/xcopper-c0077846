@@ -104,16 +104,7 @@ export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => v
   );
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" /> Master control
-          </DialogTitle>
-          <DialogDescription>Manage users, plans, branding and pricing in real time.</DialogDescription>
-        </DialogHeader>
-
-        <Tabs defaultValue="users">
+    <Tabs defaultValue="users">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="users"><Users className="h-3.5 w-3.5 mr-1" />Manage users</TabsTrigger>
             <TabsTrigger value="branding">Branding</TabsTrigger>
@@ -227,9 +218,7 @@ export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => v
               {visits.length === 0 && <p className="p-4 text-sm text-muted-foreground text-center">No visits yet.</p>}
             </div>
           </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+    </Tabs>
   );
 }
 
