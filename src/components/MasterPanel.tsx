@@ -21,7 +21,7 @@ type Row = {
 
 type ChatRow = { id: string; title: string; messages: any; updated_at: string };
 
-export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+function MasterBody({ open }: { open: boolean }) {
   const settings = useAppSettings();
   const [users, setUsers] = useState<Row[]>([]);
   const [query, setQuery] = useState("");
