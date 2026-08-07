@@ -1180,46 +1180,89 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     }
   }, [open]);
 
+  if (!open) return null;
+
+  const visual = camOn || screenOn;
+
   return (
-    <Dialog open={open} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Radio className="h-5 w-5 text-primary" /> Live X COPPER
-          </DialogTitle>
-          <DialogDescription>Speak naturally — language: {language}</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col items-center gap-4 py-4">
-          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-border flex items-center justify-center">
-            <video ref={videoRef} playsInline muted className={`w-full h-full object-cover ${camOn ? "" : "hidden"}`} />
-            {!camOn && <span className="text-xs text-muted-foreground">Camera off</span>}
-            {camOn && (
-              <button onClick={switchCamera} className="absolute top-2 right-2 h-9 w-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80" title="Switch camera">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            )}
+    <div className="fixed inset-0 z-[90] flex flex-col bg-black text-foreground">
+      <div className="flex items-center justify-between px-4 h-14 shrink-0">
+        <span className="font-semibold text-transparent bg-clip-text" style={{ backgroundImage: "var(--gradient-copper)" }}>
+          X COPPER Live
+        </span>
+        <span className="text-xs text-muted-foreground">{language}</span>
+      </div>
+
+      <div className="relative flex-1 min-h-0">
+        <video ref={videoRef} playsInline muted className={`absolute inset-0 h-full w-full object-cover ${visual ? "" : "hidden"}`} />
+        {!visual && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <XLogo className={`h-28 w-28 ${listening ? "animate-pulse" : ""}`} />
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" onClick={camOn ? stopCamera : () => startCamera()} title="Camera">
-              {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
-            </Button>
-            <button
-              onClick={listening ? stop : start}
-              className={`relative h-20 w-20 rounded-full flex items-center justify-center transition ${listening ? "animate-pulse" : ""}`}
-              style={{ background: "var(--gradient-copper)" }}
-            >
-              <Mic className="h-8 w-8 text-background" />
-              {listening && <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-ping" />}
-            </button>
-            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" onClick={onClose} title="End">
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">{listening ? "Listening…" : "Tap mic to talk"}</p>
-          {transcript && <div className="text-sm bg-muted p-3 rounded-md w-full"><b>You:</b> {transcript}</div>}
-          {response && <div className="text-sm bg-card border border-border p-3 rounded-md w-full"><b>X COPPER:</b> {response}</div>}
+        )}
+
+        {/* Copper wave ring around the live view */}
+        <div className="pointer-events-none absolute inset-0">
+          <div
+            className={`absolute inset-2 rounded-3xl transition-opacity duration-300 ${listening ? "opacity-100 animate-pulse" : "opacity-40"}`}
+            style={{ border: "3px solid transparent", backgroundImage: "linear-gradient(transparent, transparent), var(--gradient-copper)", backgroundOrigin: "border-box", backgroundClip: "padding-box, border-box" }}
+          />
+          {listening && (
+            <>
+              <div className="absolute inset-2 rounded-3xl ring-4 ring-primary/40 animate-ping" />
+              <div className="absolute inset-6 rounded-3xl ring-2 ring-primary/20 animate-ping [animation-delay:300ms]" />
+            </>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {camOn && (
+          <button onClick={switchCamera} className="absolute top-3 right-5 h-10 w-10 rounded-full bg-black/60 text-white flex items-center justify-center" title="Switch camera">
+            <RefreshCw className="h-5 w-5" />
+          </button>
+        )}
+
+        <div className="absolute inset-x-0 bottom-0 p-4 space-y-2">
+          {transcript && <div className="text-sm bg-black/70 text-white p-3 rounded-xl"><b>You:</b> {transcript}</div>}
+          {response && <div className="text-sm bg-black/70 text-white p-3 rounded-xl max-h-40 overflow-y-auto"><b>X COPPER:</b> {response}</div>}
+          <p className="text-center text-xs text-muted-foreground">{listening ? "Listening…" : micOn ? "Tap mic to talk" : "Mic is off"}</p>
+        </div>
+      </div>
+
+      <div className="shrink-0 flex items-center justify-center gap-3 py-5 bg-black">
+        <button
+          onClick={() => { if (listening) stop(); setMicOn(m => !m); }}
+          className={`h-12 w-12 rounded-full flex items-center justify-center ${micOn ? "bg-secondary text-foreground" : "bg-destructive text-destructive-foreground"}`}
+          title={micOn ? "Mic on" : "Mic off"}
+        >
+          {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+        </button>
+        <button
+          onClick={camOn ? stopCamera : () => startCamera()}
+          className="h-12 w-12 rounded-full bg-secondary text-foreground flex items-center justify-center"
+          title="Camera"
+        >
+          {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+        </button>
+        <button
+          onClick={listening ? stop : () => { if (!micOn) { showAlert("Turn the mic on to talk to X COPPER Live."); return; } start(); }}
+          className={`relative h-20 w-20 rounded-full flex items-center justify-center ${listening ? "animate-pulse" : ""}`}
+          style={{ background: "var(--gradient-copper)" }}
+          title="Talk"
+        >
+          <Mic className="h-8 w-8 text-background" />
+          {listening && <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-ping" />}
+        </button>
+        <button
+          onClick={screenOn ? stopScreen : startScreen}
+          className={`h-12 w-12 rounded-full flex items-center justify-center ${screenOn ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}
+          title="Share screen"
+        >
+          <MonitorUp className="h-5 w-5" />
+        </button>
+        <button onClick={onClose} className="h-12 w-12 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center" title="End">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
   );
 }
