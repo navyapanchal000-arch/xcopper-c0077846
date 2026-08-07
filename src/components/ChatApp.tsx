@@ -173,6 +173,7 @@ export default function ChatApp() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const saveTimer = useRef<any>(null);
+  const justSignedIn = useRef(false);
 
   const active = chats.find(c => c.id === activeId)!;
 
@@ -180,6 +181,7 @@ export default function ChatApp() {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setUser(s?.user ?? null);
+      if (_e === "SIGNED_IN") justSignedIn.current = true;
       if (!s?.user) {
         const c = { id: uid(), title: "New chat", messages: [] };
         setChats([c]);
@@ -198,6 +200,10 @@ export default function ChatApp() {
     setTier(effectiveTier(p?.tier, p?.tier_expires_at));
     const { data: r } = await db.from("user_roles").select("role").eq("user_id", user.id).eq("role", "master").maybeSingle();
     setIsMaster(!!r);
+    if (r && justSignedIn.current) {
+      justSignedIn.current = false;
+      setShowMaster(true);
+    }
   }, [user]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
