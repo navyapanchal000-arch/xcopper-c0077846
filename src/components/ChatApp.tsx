@@ -50,6 +50,17 @@ const PLACEHOLDERS = [
 
 function uid() { return crypto.randomUUID(); }
 
+const IMAGE_TRIGGERS = [
+  /\b(generate|create|make|draw|design|render|paint)\b[^.?!]*\b(image|images|picture|photo|pic|logo|poster|wallpaper|art|illustration|drawing|banner)\b/i,
+  /\b(image|photo|picture|logo|wallpaper|poster)\b[^.?!]*\b(banao|banado|bana do|bnao|generate karo|bana)\b/i,
+  /^\/(image|img)\b/i,
+];
+function isImageRequest(text: string) {
+  const t = (text || "").trim();
+  if (!t) return false;
+  return IMAGE_TRIGGERS.some(r => r.test(t));
+}
+
 const getSpeechSynth = (): SpeechSynthesis | null => {
   if (typeof window === "undefined") return null;
   return window.speechSynthesis || (globalThis as any).speechSynthesis || null;
