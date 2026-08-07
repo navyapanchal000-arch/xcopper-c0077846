@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { AlertHost } from "@/components/AlertPopup";
 
 function NotFoundComponent() {
   return (
@@ -64,6 +65,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <body>
         {children}
         <Toaster />
+        <AlertHost />
         <Scripts />
       </body>
     </html>
