@@ -619,6 +619,11 @@ export default function ChatApp() {
                       <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                         {!m.content && isLoading && i === active.messages.length - 1 ? (
                           <XLogo className="h-6 w-6 animate-spin" />
+                        ) : genImage && i === active.messages.length - 1 && m.role === "assistant" ? (
+                          <span className="flex items-center gap-2">
+                            <XLogo className="h-5 w-5 animate-spin" />
+                            {m.content}
+                          </span>
                         ) : (
                           <ReactMarkdown>{m.content}</ReactMarkdown>
                         )}
