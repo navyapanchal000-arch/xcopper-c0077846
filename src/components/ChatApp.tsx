@@ -1043,6 +1043,22 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     streamRef.current = null;
     setCamOn(false);
   };
+  const startScreen = async () => {
+    try {
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      const s = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: false });
+      streamRef.current = s;
+      setCamOn(false);
+      if (videoRef.current) { videoRef.current.srcObject = s; await videoRef.current.play(); }
+      s.getVideoTracks()[0]?.addEventListener("ended", () => { streamRef.current = null; setScreenOn(false); });
+      setScreenOn(true);
+    } catch { showAlert("Screen sharing was not allowed."); }
+  };
+  const stopScreen = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setScreenOn(false);
+  };
   const switchCamera = async () => {
     const next = facing === "user" ? "environment" : "user";
     setFacing(next);
