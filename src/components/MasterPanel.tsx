@@ -222,6 +222,45 @@ function MasterBody({ open }: { open: boolean }) {
   );
 }
 
+export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" /> Master control
+          </DialogTitle>
+          <DialogDescription>Manage users, plans, branding and pricing in real time.</DialogDescription>
+        </DialogHeader>
+        <MasterBody open={open} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Full-screen master console — no chat, no AI, admin only. */
+export function MasterConsole({ email, onSignOut }: { email?: string | null; onSignOut: () => void }) {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="flex items-center justify-between border-b border-border px-4 h-14">
+        <div className="flex items-center gap-2 min-w-0">
+          <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+          <span className="font-semibold text-transparent bg-clip-text whitespace-nowrap" style={{ backgroundImage: "var(--gradient-copper)" }}>
+            Master console
+          </span>
+        </div>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs text-muted-foreground truncate max-w-[140px]">{email}</span>
+          <Button size="sm" variant="outline" onClick={onSignOut}>Sign out</Button>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-3xl p-4">
+        <MasterBody open />
+      </main>
+    </div>
+  );
+}
+
 export function TierBadge({ tier }: { tier: "free" | "premium" | "platinum" }) {
   if (tier === "free") {
     return (
