@@ -5,7 +5,7 @@ import {
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
   Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
-  ShieldCheck, Crown,
+  ShieldCheck, Crown, MicOff, MonitorUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,13 +20,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { toast } from "sonner";
+import { showAlert } from "@/components/AlertPopup";
 import { XLogo } from "@/components/XLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import type { User } from "@supabase/supabase-js";
 import { useAppSettings, effectiveTier, TIER_LIMITS, type Tier } from "@/lib/appSettings";
-import { MasterPanel, TierBadge } from "@/components/MasterPanel";
+import { MasterConsole, TierBadge } from "@/components/MasterPanel";
 import { PricingDialog } from "@/components/PricingDialog";
 
 type Msg = { role: "user" | "assistant"; content: string; attachments?: { name: string; type: string; url?: string }[] };
@@ -49,6 +49,17 @@ const PLACEHOLDERS = [
 ];
 
 function uid() { return crypto.randomUUID(); }
+
+const IMAGE_TRIGGERS = [
+  /\b(generate|create|make|draw|design|render|paint)\b[^.?!]*\b(image|images|picture|photo|pic|logo|poster|wallpaper|art|illustration|drawing|banner)\b/i,
+  /\b(image|photo|picture|logo|wallpaper|poster)\b[^.?!]*\b(banao|banado|bana do|bnao|generate karo|bana)\b/i,
+  /^\/(image|img)\b/i,
+];
+function isImageRequest(text: string) {
+  const t = (text || "").trim();
+  if (!t) return false;
+  return IMAGE_TRIGGERS.some(r => r.test(t));
+}
 
 const getSpeechSynth = (): SpeechSynthesis | null => {
   if (typeof window === "undefined") return null;
@@ -100,6 +111,7 @@ export default function ChatApp() {
   const [isMaster, setIsMaster] = useState(false);
   const [showMaster, setShowMaster] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
+  const [genImage, setGenImage] = useState(false);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
     if (typeof window === "undefined") return "female";
     const saved = localStorage.getItem("xcopper_voice_mode");
@@ -135,7 +147,7 @@ export default function ChatApp() {
   const speak = (idx: number, text: string) => {
     const synth = getSpeechSynth();
     if (!synth) {
-      toast.error("Read aloud is unavailable in this browser. Open X COPPER in Chrome or Safari.");
+      showAlert("Read aloud is unavailable in this browser. Open X COPPER in Chrome or Safari.");
       return;
     }
     // Detach handlers from any previous utterance so its onend can't reset our new state
@@ -200,10 +212,7 @@ export default function ChatApp() {
     setTier(effectiveTier(p?.tier, p?.tier_expires_at));
     const { data: r } = await db.from("user_roles").select("role").eq("user_id", user.id).eq("role", "master").maybeSingle();
     setIsMaster(!!r);
-    if (r && justSignedIn.current) {
-      justSignedIn.current = false;
-      setShowMaster(true);
-    }
+    if (r) justSignedIn.current = false;
   }, [user]);
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
@@ -298,6 +307,39 @@ export default function ChatApp() {
       attachments: attachments.map(a => ({ name: a.name, type: a.type, url: a.data })),
     };
 
+    // ---- Image generation flow ----
+    if (attachments.length === 0 && isImageRequest(text)) {
+      const msgs = [...active.messages, userMsg];
+      const title = active.messages.length === 0 ? (text.slice(0, 40) || "New chat") : active.title;
+      updateActive(c => ({ ...c, title, messages: [...msgs, { role: "assistant", content: "Your X COPPER is making your image." }] }));
+      setInput("");
+      setIsLoading(true);
+      setGenImage(true);
+      try {
+        const r = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: text }),
+        });
+        const j = await r.json();
+        if (!r.ok || !j.image) throw new Error(j.error || "failed");
+        const done: Msg = {
+          role: "assistant",
+          content: "Here is your image.",
+          attachments: [{ name: "x-copper-image.png", type: "image/png", url: j.image }],
+        };
+        updateActive(c => ({ ...c, messages: [...msgs, done] }));
+        persistActive({ id: activeId, title, messages: [...msgs, done] });
+      } catch {
+        showAlert("Image could not be generated. Please try again.");
+        updateActive(c => ({ ...c, messages: msgs }));
+      } finally {
+        setGenImage(false);
+        setIsLoading(false);
+      }
+      return;
+    }
+
     const apiUserContent: any = attachments.length > 0
       ? [
           ...(text ? [{ type: "text", text }] : []),
@@ -330,7 +372,7 @@ export default function ChatApp() {
         signal: abortRef.current.signal,
       });
 
-      if (resp.status === 429) { toast.error("Rate limit — please wait a moment."); setIsLoading(false); return; }
+      if (resp.status === 429) { showAlert("Rate limit — please wait a moment."); setIsLoading(false); return; }
       if (resp.status === 402) { setShowCredits(true); setIsLoading(false); return; }
       if (!resp.ok || !resp.body) throw new Error("Stream failed");
 
@@ -368,7 +410,7 @@ export default function ChatApp() {
       const finalChat: Chat = { id: activeId, title: newTitle, messages: [...newMessages, { role: "assistant", content: assistant }] };
       persistActive(finalChat);
     } catch (e: any) {
-      if (e.name !== "AbortError") { console.error(e); toast.error("Something went wrong. Try again."); }
+      if (e.name !== "AbortError") { console.error(e); showAlert("Something went wrong. Try again."); }
     } finally {
       setIsLoading(false);
       abortRef.current = null;
@@ -382,7 +424,7 @@ export default function ChatApp() {
   const [recording, setRecording] = useState(false);
   const toggleVoice = () => {
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { toast.error("Voice input not supported in this browser"); return; }
+    if (!SR) { showAlert("Voice input not supported in this browser"); return; }
     if (recording) { recRef.current?.stop(); return; }
     const r = new SR();
     r.lang = "en-US"; r.interimResults = true; r.continuous = false;
@@ -407,7 +449,7 @@ export default function ChatApp() {
     if (!f) return;
     e.target.value = "";
     if (!user) {
-      toast.error("Sign in to upload files and images.");
+      showAlert("Sign in to upload files and images.");
       setShowAuth(true);
       return;
     }
@@ -415,8 +457,8 @@ export default function ChatApp() {
     const isImage = (f.type || "").startsWith("image/");
     const isVideo = (f.type || "").startsWith("video/");
     if (!isImage) {
-      if (isVideo && !limits.video) { toast.error("Video upload is available on Premium and Platinum."); setShowPricing(true); return; }
-      if (!isVideo && !limits.docs) { toast.error("PDF & document upload is available on Premium and Platinum."); setShowPricing(true); return; }
+      if (isVideo && !limits.video) { showAlert("Video upload is available on Premium and Platinum."); setShowPricing(true); return; }
+      if (!isVideo && !limits.docs) { showAlert("PDF & document upload is available on Premium and Platinum."); setShowPricing(true); return; }
     }
     if (isImage) {
       const alreadyInChat = active.messages.reduce(
@@ -424,12 +466,12 @@ export default function ChatApp() {
       );
       const pending = attachments.filter(a => a.type.startsWith("image/")).length;
       if (alreadyInChat + pending >= limits.images) {
-        toast.error(`Your plan allows ${limits.images} images per chat.`);
+        showAlert(`Your plan allows ${limits.images} images per chat.`);
         setShowPricing(true);
         return;
       }
     }
-    if (f.size > 5 * 1024 * 1024) { toast.error("Max 5 MB"); return; }
+    if (f.size > 5 * 1024 * 1024) { showAlert("Max 5 MB"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       setAttachments(a => [...a, { name: f.name, type: f.type || (kind === "file" ? "application/octet-stream" : "image/png"), data: reader.result as string }]);
@@ -438,6 +480,11 @@ export default function ChatApp() {
   };
 
   const empty = active.messages.length === 0;
+
+  // Master user gets their own full console — no chat, no AI.
+  if (isMaster) {
+    return <MasterConsole email={user?.email} onSignOut={() => { supabase.auth.signOut(); }} />;
+  }
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -483,7 +530,7 @@ export default function ChatApp() {
                 {MODES.map(m => {
                   const Icon = m.icon;
                   return (
-                    <DropdownMenuItem key={m.id} onClick={() => { setMode(m.id); toast.success(`${m.label} mode`); }}>
+                    <DropdownMenuItem key={m.id} onClick={() => setMode(m.id)}>
                       <Icon className="h-4 w-4 mr-2 text-primary" />
                       <span className="flex-1">{m.label}</span>
                       {mode === m.id && <Check className="h-4 w-4 text-primary" />}
@@ -503,11 +550,6 @@ export default function ChatApp() {
                 <DropdownMenuItem onClick={() => setShowPricing(true)}>
                   <Crown className="h-4 w-4 mr-2 text-primary" /> Plans & pricing
                 </DropdownMenuItem>
-                {isMaster && (
-                  <DropdownMenuItem onClick={() => setShowMaster(true)}>
-                    <ShieldCheck className="h-4 w-4 mr-2 text-primary" /> Master control
-                  </DropdownMenuItem>
-                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <DropdownMenu>
@@ -525,7 +567,7 @@ export default function ChatApp() {
                     <DropdownMenuItem onClick={() => setShowPricing(true)}>
                       <Crown className="h-4 w-4 mr-2 text-primary" /> Upgrade plan
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={async () => { await supabase.auth.signOut(); toast.success("Signed out"); }}>
+                    <DropdownMenuItem onClick={async () => { await supabase.auth.signOut(); showAlert("Signed out"); }}>
                       <LogOut className="h-4 w-4 mr-2" /> Sign out
                     </DropdownMenuItem>
                   </>
@@ -582,6 +624,11 @@ export default function ChatApp() {
                       <div className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                         {!m.content && isLoading && i === active.messages.length - 1 ? (
                           <XLogo className="h-6 w-6 animate-spin" />
+                        ) : genImage && i === active.messages.length - 1 && m.role === "assistant" ? (
+                          <span className="flex items-center gap-2">
+                            <XLogo className="h-5 w-5 animate-spin" />
+                            {m.content}
+                          </span>
                         ) : (
                           <ReactMarkdown>{m.content}</ReactMarkdown>
                         )}
@@ -761,8 +808,6 @@ export default function ChatApp() {
 
       <PricingDialog open={showPricing} onClose={() => setShowPricing(false)} current={tier} />
 
-      {isMaster && <MasterPanel open={showMaster} onClose={() => setShowMaster(false)} />}
-
       <LiveMode open={liveOpen} onClose={() => setLiveOpen(false)} language={language} voiceMode={voiceMode} voices={voices} selectedAI={selectedAI} />
     </div>
   );
@@ -853,26 +898,26 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const google = async () => {
     setBusy(true);
     const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (r.error) { toast.error("Google sign-in failed"); setBusy(false); return; }
+    if (r.error) { showAlert("Google sign-in failed"); setBusy(false); return; }
     if (r.redirected) return;
-    toast.success("Signed in"); onClose();
+    showAlert("Signed in"); onClose();
     setBusy(false);
   };
 
   const submit = async () => {
-    if (!email || !password) { toast.error("Enter email and password"); return; }
+    if (!email || !password) { showAlert("Enter email and password"); return; }
     setBusy(true);
     if (mode === "signup") {
       const { error } = await supabase.auth.signUp({
         email, password,
         options: { emailRedirectTo: window.location.origin },
       });
-      if (error) toast.error(error.message);
-      else { toast.success("Check your email to verify your account."); onClose(); }
+      if (error) showAlert(error.message);
+      else { showAlert("Check your email to verify your account."); onClose(); }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) toast.error(error.message);
-      else { toast.success("Signed in"); onClose(); }
+      if (error) showAlert(error.message);
+      else { showAlert("Signed in"); onClose(); }
     }
     setBusy(false);
   };
@@ -941,6 +986,8 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
   const [camOn, setCamOn] = useState(false);
+  const [screenOn, setScreenOn] = useState(false);
+  const [micOn, setMicOn] = useState(true);
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -991,12 +1038,28 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
       streamRef.current = s;
       if (videoRef.current) { videoRef.current.srcObject = s; await videoRef.current.play(); }
       setCamOn(true);
-    } catch { toast.error("Camera permission denied"); }
+    } catch { showAlert("Camera permission denied"); }
   };
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach(t => t.stop());
     streamRef.current = null;
     setCamOn(false);
+  };
+  const startScreen = async () => {
+    try {
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      const s = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: false });
+      streamRef.current = s;
+      setCamOn(false);
+      if (videoRef.current) { videoRef.current.srcObject = s; await videoRef.current.play(); }
+      s.getVideoTracks()[0]?.addEventListener("ended", () => { streamRef.current = null; setScreenOn(false); });
+      setScreenOn(true);
+    } catch { showAlert("Screen sharing was not allowed."); }
+  };
+  const stopScreen = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setScreenOn(false);
   };
   const switchCamera = async () => {
     const next = facing === "user" ? "environment" : "user";
@@ -1041,7 +1104,7 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     unlockTTS();
     prepareLiveSpeech(speechToken);
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { toast.error("Voice not supported"); return; }
+    if (!SR) { showAlert("Voice not supported"); return; }
     const r = new SR();
     r.lang = langCode(language); r.continuous = false; r.interimResults = true;
     let final = "";
@@ -1113,7 +1176,7 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
           speak(out);
         }
         queuedLiveSpeechRef.current = null;
-      } catch { toast.error("Live error"); }
+      } catch { showAlert("Live error"); }
     };
     recRef.current = r;
     setTranscript(""); setResponse("");
@@ -1135,46 +1198,89 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
     }
   }, [open]);
 
+  if (!open) return null;
+
+  const visual = camOn || screenOn;
+
   return (
-    <Dialog open={open} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Radio className="h-5 w-5 text-primary" /> Live X COPPER
-          </DialogTitle>
-          <DialogDescription>Speak naturally — language: {language}</DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col items-center gap-4 py-4">
-          <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-border flex items-center justify-center">
-            <video ref={videoRef} playsInline muted className={`w-full h-full object-cover ${camOn ? "" : "hidden"}`} />
-            {!camOn && <span className="text-xs text-muted-foreground">Camera off</span>}
-            {camOn && (
-              <button onClick={switchCamera} className="absolute top-2 right-2 h-9 w-9 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80" title="Switch camera">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            )}
+    <div className="fixed inset-0 z-[90] flex flex-col bg-black text-foreground">
+      <div className="flex items-center justify-between px-4 h-14 shrink-0">
+        <span className="font-semibold text-transparent bg-clip-text" style={{ backgroundImage: "var(--gradient-copper)" }}>
+          X COPPER Live
+        </span>
+        <span className="text-xs text-muted-foreground">{language}</span>
+      </div>
+
+      <div className="relative flex-1 min-h-0">
+        <video ref={videoRef} playsInline muted className={`absolute inset-0 h-full w-full object-cover ${visual ? "" : "hidden"}`} />
+        {!visual && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <XLogo className={`h-28 w-28 ${listening ? "animate-pulse" : ""}`} />
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" onClick={camOn ? stopCamera : () => startCamera()} title="Camera">
-              {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
-            </Button>
-            <button
-              onClick={listening ? stop : start}
-              className={`relative h-20 w-20 rounded-full flex items-center justify-center transition ${listening ? "animate-pulse" : ""}`}
-              style={{ background: "var(--gradient-copper)" }}
-            >
-              <Mic className="h-8 w-8 text-background" />
-              {listening && <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-ping" />}
-            </button>
-            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" onClick={onClose} title="End">
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground">{listening ? "Listening…" : "Tap mic to talk"}</p>
-          {transcript && <div className="text-sm bg-muted p-3 rounded-md w-full"><b>You:</b> {transcript}</div>}
-          {response && <div className="text-sm bg-card border border-border p-3 rounded-md w-full"><b>X COPPER:</b> {response}</div>}
+        )}
+
+        {/* Copper wave ring around the live view */}
+        <div className="pointer-events-none absolute inset-0">
+          <div
+            className={`absolute inset-2 rounded-3xl transition-opacity duration-300 ${listening ? "opacity-100 animate-pulse" : "opacity-40"}`}
+            style={{ border: "3px solid transparent", backgroundImage: "linear-gradient(transparent, transparent), var(--gradient-copper)", backgroundOrigin: "border-box", backgroundClip: "padding-box, border-box" }}
+          />
+          {listening && (
+            <>
+              <div className="absolute inset-2 rounded-3xl ring-4 ring-primary/40 animate-ping" />
+              <div className="absolute inset-6 rounded-3xl ring-2 ring-primary/20 animate-ping [animation-delay:300ms]" />
+            </>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {camOn && (
+          <button onClick={switchCamera} className="absolute top-3 right-5 h-10 w-10 rounded-full bg-black/60 text-white flex items-center justify-center" title="Switch camera">
+            <RefreshCw className="h-5 w-5" />
+          </button>
+        )}
+
+        <div className="absolute inset-x-0 bottom-0 p-4 space-y-2">
+          {transcript && <div className="text-sm bg-black/70 text-white p-3 rounded-xl"><b>You:</b> {transcript}</div>}
+          {response && <div className="text-sm bg-black/70 text-white p-3 rounded-xl max-h-40 overflow-y-auto"><b>X COPPER:</b> {response}</div>}
+          <p className="text-center text-xs text-muted-foreground">{listening ? "Listening…" : micOn ? "Tap mic to talk" : "Mic is off"}</p>
+        </div>
+      </div>
+
+      <div className="shrink-0 flex items-center justify-center gap-3 py-5 bg-black">
+        <button
+          onClick={() => { if (listening) stop(); setMicOn(m => !m); }}
+          className={`h-12 w-12 rounded-full flex items-center justify-center ${micOn ? "bg-secondary text-foreground" : "bg-destructive text-destructive-foreground"}`}
+          title={micOn ? "Mic on" : "Mic off"}
+        >
+          {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+        </button>
+        <button
+          onClick={camOn ? stopCamera : () => startCamera()}
+          className="h-12 w-12 rounded-full bg-secondary text-foreground flex items-center justify-center"
+          title="Camera"
+        >
+          {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+        </button>
+        <button
+          onClick={listening ? stop : () => { if (!micOn) { showAlert("Turn the mic on to talk to X COPPER Live."); return; } start(); }}
+          className={`relative h-20 w-20 rounded-full flex items-center justify-center ${listening ? "animate-pulse" : ""}`}
+          style={{ background: "var(--gradient-copper)" }}
+          title="Talk"
+        >
+          <Mic className="h-8 w-8 text-background" />
+          {listening && <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-ping" />}
+        </button>
+        <button
+          onClick={screenOn ? stopScreen : startScreen}
+          className={`h-12 w-12 rounded-full flex items-center justify-center ${screenOn ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}
+          title="Share screen"
+        >
+          <MonitorUp className="h-5 w-5" />
+        </button>
+        <button onClick={onClose} className="h-12 w-12 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center" title="End">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
   );
 }

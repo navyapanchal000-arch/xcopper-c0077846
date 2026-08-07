@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Crown, Gem, RefreshCw, Search, ShieldCheck, Sparkles, Users } from "lucide-react";
-import { toast } from "sonner";
+import { showAlert } from "@/components/AlertPopup";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppSettings, DEFAULT_SETTINGS, effectiveTier } from "@/lib/appSettings";
 
@@ -21,7 +21,7 @@ type Row = {
 
 type ChatRow = { id: string; title: string; messages: any; updated_at: string };
 
-export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+function MasterBody({ open }: { open: boolean }) {
   const settings = useAppSettings();
   const [users, setUsers] = useState<Row[]>([]);
   const [query, setQuery] = useState("");
@@ -47,7 +47,7 @@ export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => v
       .select("id,email,display_name,tier,tier_expires_at,created_at")
       .order("created_at", { ascending: false })
       .limit(500);
-    if (error) { toast.error(error.message); return; }
+    if (error) { showAlert(error.message); return; }
     setUsers(data || []);
   }, []);
 
@@ -79,8 +79,8 @@ export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => v
     const m = Math.max(0, parseInt(months || "1", 10) || 1);
     const expires = tier === "free" ? null : new Date(Date.now() + m * 30 * 24 * 60 * 60 * 1000).toISOString();
     const { error } = await db().from("profiles").update({ tier, tier_expires_at: expires }).eq("id", u.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`${u.email} is now ${tier.toUpperCase()}`);
+    if (error) { showAlert(error.message); return; }
+    showAlert(`${u.email} is now ${tier.toUpperCase()}`);
     loadUsers();
     setSelected({ ...u, tier, tier_expires_at: expires });
   };
@@ -93,8 +93,8 @@ export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => v
       platinum_price: Number(platinum) || 0,
       updated_at: new Date().toISOString(),
     }).eq("id", 1);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Saved — live for every user");
+    if (error) { showAlert(error.message); return; }
+    showAlert("Saved — live for every user");
   };
 
   const filtered = users.filter((u) =>
@@ -104,16 +104,7 @@ export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => v
   );
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" /> Master control
-          </DialogTitle>
-          <DialogDescription>Manage users, plans, branding and pricing in real time.</DialogDescription>
-        </DialogHeader>
-
-        <Tabs defaultValue="users">
+    <Tabs defaultValue="users">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="users"><Users className="h-3.5 w-3.5 mr-1" />Manage users</TabsTrigger>
             <TabsTrigger value="branding">Branding</TabsTrigger>
@@ -227,9 +218,46 @@ export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => v
               {visits.length === 0 && <p className="p-4 text-sm text-muted-foreground text-center">No visits yet.</p>}
             </div>
           </TabsContent>
-        </Tabs>
+    </Tabs>
+  );
+}
+
+export function MasterPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" /> Master control
+          </DialogTitle>
+          <DialogDescription>Manage users, plans, branding and pricing in real time.</DialogDescription>
+        </DialogHeader>
+        <MasterBody open={open} />
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Full-screen master console — no chat, no AI, admin only. */
+export function MasterConsole({ email, onSignOut }: { email?: string | null; onSignOut: () => void }) {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="flex items-center justify-between border-b border-border px-4 h-14">
+        <div className="flex items-center gap-2 min-w-0">
+          <ShieldCheck className="h-5 w-5 text-primary shrink-0" />
+          <span className="font-semibold text-transparent bg-clip-text whitespace-nowrap" style={{ backgroundImage: "var(--gradient-copper)" }}>
+            Master console
+          </span>
+        </div>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs text-muted-foreground truncate max-w-[140px]">{email}</span>
+          <Button size="sm" variant="outline" onClick={onSignOut}>Sign out</Button>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-3xl p-4">
+        <MasterBody open />
+      </main>
+    </div>
   );
 }
 
