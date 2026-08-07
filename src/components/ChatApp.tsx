@@ -5,7 +5,7 @@ import {
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
   Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
-  ShieldCheck, Crown,
+  ShieldCheck, Crown, MicOff, MonitorUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -986,6 +986,8 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
   const [camOn, setCamOn] = useState(false);
+  const [screenOn, setScreenOn] = useState(false);
+  const [micOn, setMicOn] = useState(true);
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
