@@ -295,6 +295,39 @@ export default function ChatApp() {
       attachments: attachments.map(a => ({ name: a.name, type: a.type, url: a.data })),
     };
 
+    // ---- Image generation flow ----
+    if (attachments.length === 0 && isImageRequest(text)) {
+      const msgs = [...active.messages, userMsg];
+      const title = active.messages.length === 0 ? (text.slice(0, 40) || "New chat") : active.title;
+      updateActive(c => ({ ...c, title, messages: [...msgs, { role: "assistant", content: "Your X COPPER is making your image." }] }));
+      setInput("");
+      setIsLoading(true);
+      setGenImage(true);
+      try {
+        const r = await fetch("/api/generate-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: text }),
+        });
+        const j = await r.json();
+        if (!r.ok || !j.image) throw new Error(j.error || "failed");
+        const done: Msg = {
+          role: "assistant",
+          content: "Here is your image.",
+          attachments: [{ name: "x-copper-image.png", type: "image/png", url: j.image }],
+        };
+        updateActive(c => ({ ...c, messages: [...msgs, done] }));
+        persistActive({ id: activeId, title, messages: [...msgs, done] });
+      } catch {
+        showAlert("Image could not be generated. Please try again.");
+        updateActive(c => ({ ...c, messages: msgs }));
+      } finally {
+        setGenImage(false);
+        setIsLoading(false);
+      }
+      return;
+    }
+
     const apiUserContent: any = attachments.length > 0
       ? [
           ...(text ? [{ type: "text", text }] : []),
