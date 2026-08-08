@@ -33,12 +33,24 @@ function MasterBody({ open }: { open: boolean }) {
   const [logo, setLogo] = useState(settings.logo_url || "");
   const [premium, setPremium] = useState(String(settings.premium_price));
   const [platinum, setPlatinum] = useState(String(settings.platinum_price));
+  const [ring, setRing] = useState(settings.logo_ring);
+  const [premiumLabel, setPremiumLabel] = useState(settings.premium_label);
+  const [platinumLabel, setPlatinumLabel] = useState(settings.platinum_label);
+  const [freeFeat, setFreeFeat] = useState(settings.free_features.join("\n"));
+  const [premiumFeat, setPremiumFeat] = useState(settings.premium_features.join("\n"));
+  const [platinumFeat, setPlatinumFeat] = useState(settings.platinum_features.join("\n"));
 
   useEffect(() => {
     setName(settings.ai_name);
     setLogo(settings.logo_url || "");
     setPremium(String(settings.premium_price));
     setPlatinum(String(settings.platinum_price));
+    setRing(settings.logo_ring);
+    setPremiumLabel(settings.premium_label);
+    setPlatinumLabel(settings.platinum_label);
+    setFreeFeat(settings.free_features.join("\n"));
+    setPremiumFeat(settings.premium_features.join("\n"));
+    setPlatinumFeat(settings.platinum_features.join("\n"));
   }, [settings]);
 
   const loadUsers = useCallback(async () => {
@@ -85,12 +97,20 @@ function MasterBody({ open }: { open: boolean }) {
     setSelected({ ...u, tier, tier_expires_at: expires });
   };
 
+  const lines = (v: string) => v.split("\n").map(l => l.trim()).filter(Boolean);
+
   const saveSettings = async () => {
     const { error } = await db().from("app_settings").update({
       ai_name: name || DEFAULT_SETTINGS.ai_name,
       logo_url: logo.trim() || null,
       premium_price: Number(premium) || 0,
       platinum_price: Number(platinum) || 0,
+      logo_ring: ring,
+      premium_label: premiumLabel || "Premium",
+      platinum_label: platinumLabel || "Platinum",
+      free_features: lines(freeFeat),
+      premium_features: lines(premiumFeat),
+      platinum_features: lines(platinumFeat),
       updated_at: new Date().toISOString(),
     }).eq("id", 1);
     if (error) { showAlert(error.message); return; }
