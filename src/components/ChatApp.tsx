@@ -610,7 +610,7 @@ export default function ChatApp() {
           ) : (
             <div className="max-w-3xl mx-auto py-6 px-4 space-y-6">
               {active.messages.map((m, i) => (
-                <div key={i} className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div key={i} className={`flex gap-3 animate-in fade-in slide-in-from-bottom-8 duration-500 ease-out ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   {m.role === "assistant" && <XLogo className="h-7 w-7 mt-1 shrink-0" />}
                   <div className={`flex flex-col max-w-[85%] ${m.role === "user" ? "items-end" : "items-start"}`}>
                     <div className={`rounded-2xl px-4 py-3 ${m.role === "user" ? "bg-secondary text-foreground" : "bg-card border border-border animate-in fade-in slide-in-from-bottom-2 duration-500"}`}>
