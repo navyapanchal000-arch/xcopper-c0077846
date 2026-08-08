@@ -28,6 +28,7 @@ import type { User } from "@supabase/supabase-js";
 import { useAppSettings, effectiveTier, TIER_LIMITS, type Tier } from "@/lib/appSettings";
 import { MasterConsole, TierBadge } from "@/components/MasterPanel";
 import { PricingDialog } from "@/components/PricingDialog";
+import { EdgeWaves } from "@/components/EdgeWaves";
 
 type Msg = { role: "user" | "assistant"; content: string; attachments?: { name: string; type: string; url?: string }[] };
 type Chat = { id: string; title: string; messages: Msg[] };
@@ -510,7 +511,8 @@ export default function ChatApp() {
         <div className="p-3 border-t border-sidebar-border text-xs text-muted-foreground">{settings.ai_name} · v1.0</div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="relative flex-1 flex flex-col min-w-0">
+        {isLoading && <EdgeWaves active thickness={4} />}
         <header className="flex items-center justify-between px-4 h-14 border-b border-border">
           <div className="flex items-center gap-2 font-semibold whitespace-nowrap">
             <span className="text-transparent bg-clip-text whitespace-nowrap" style={{ backgroundImage: "var(--gradient-copper)" }}>{settings.ai_name}</span>
