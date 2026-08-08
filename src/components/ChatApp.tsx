@@ -1204,6 +1204,8 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
 
   return (
     <div className="fixed inset-0 z-[90] flex flex-col bg-black text-foreground">
+      {/* Audio waves run only along the screen edges — never in the center */}
+      <EdgeWaves active={listening || !!response} thickness={5} />
       <div className="flex items-center justify-between px-4 h-14 shrink-0">
         <span className="font-semibold text-transparent bg-clip-text" style={{ backgroundImage: "var(--gradient-copper)" }}>
           X COPPER Live
@@ -1218,20 +1220,6 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
             <XLogo className={`h-28 w-28 ${listening ? "animate-pulse" : ""}`} />
           </div>
         )}
-
-        {/* Copper wave ring around the live view */}
-        <div className="pointer-events-none absolute inset-0">
-          <div
-            className={`absolute inset-2 rounded-3xl transition-opacity duration-300 ${listening ? "opacity-100 animate-pulse" : "opacity-40"}`}
-            style={{ border: "3px solid transparent", backgroundImage: "linear-gradient(transparent, transparent), var(--gradient-copper)", backgroundOrigin: "border-box", backgroundClip: "padding-box, border-box" }}
-          />
-          {listening && (
-            <>
-              <div className="absolute inset-2 rounded-3xl ring-4 ring-primary/40 animate-ping" />
-              <div className="absolute inset-6 rounded-3xl ring-2 ring-primary/20 animate-ping [animation-delay:300ms]" />
-            </>
-          )}
-        </div>
 
         {camOn && (
           <button onClick={switchCamera} className="absolute top-3 right-5 h-10 w-10 rounded-full bg-black/60 text-white flex items-center justify-center" title="Switch camera">
@@ -1249,10 +1237,16 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
       <div className="shrink-0 flex items-center justify-center gap-3 py-5 bg-black">
         <button
           onClick={() => { if (listening) stop(); setMicOn(m => !m); }}
-          className={`h-12 w-12 rounded-full flex items-center justify-center ${micOn ? "bg-secondary text-foreground" : "bg-destructive text-destructive-foreground"}`}
-          title={micOn ? "Mic on" : "Mic off"}
+          className={`h-12 w-12 rounded-full flex items-center justify-center transition ${
+            micOn
+              ? "bg-primary/15 text-primary ring-2 ring-primary shadow-[0_0_18px_-2px_oklch(0.68_0.13_45/0.8)]"
+              : "bg-secondary/40 text-muted-foreground/70"
+          }`}
+          title={micOn ? "Mic on — you can speak" : "Mic off — audio input disabled"}
         >
-          {micOn ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+          {micOn
+            ? <Mic className="h-6 w-6" strokeWidth={3} />
+            : <MicOff className="h-5 w-5" strokeWidth={1.25} />}
         </button>
         <button
           onClick={camOn ? stopCamera : () => startCamera()}
@@ -1263,12 +1257,11 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
         </button>
         <button
           onClick={listening ? stop : () => { if (!micOn) { showAlert("Turn the mic on to talk to X COPPER Live."); return; } start(); }}
-          className={`relative h-20 w-20 rounded-full flex items-center justify-center ${listening ? "animate-pulse" : ""}`}
+          className={`relative h-20 w-20 rounded-full flex items-center justify-center transition ${listening ? "animate-pulse" : ""} ${micOn ? "" : "opacity-40"}`}
           style={{ background: "var(--gradient-copper)" }}
-          title="Talk"
+          title={micOn ? "Talk" : "Mic is off"}
         >
-          <Mic className="h-8 w-8 text-background" />
-          {listening && <span className="absolute inset-0 rounded-full ring-4 ring-primary/40 animate-ping" />}
+          <Mic className="h-8 w-8 text-background" strokeWidth={micOn ? 3 : 1.5} />
         </button>
         <button
           onClick={screenOn ? stopScreen : startScreen}
