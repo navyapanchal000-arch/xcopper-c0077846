@@ -9,44 +9,9 @@ export function PricingDialog({
   const s = useAppSettings();
 
   const plans = [
-    {
-      id: "free" as Tier,
-      name: "Stay free",
-      price: "0",
-      icon: Sparkles,
-      perks: [
-        "Upload only 5 images per chat",
-        "Simple image generation",
-        "No PDF or document upload",
-        "No video upload",
-      ],
-    },
-    {
-      id: "premium" as Tier,
-      name: "Premium",
-      price: String(s.premium_price),
-      icon: Crown,
-      perks: [
-        "Upload 20 images at a time",
-        "Upload PDF & documents",
-        "Upload video",
-        "Premium image generation",
-        "Unlimited chats",
-      ],
-    },
-    {
-      id: "platinum" as Tier,
-      name: "Platinum",
-      price: String(s.platinum_price),
-      icon: Gem,
-      perks: [
-        "Upload 40 images at a time",
-        "Upload PDF & documents",
-        "Upload video",
-        "Extra premium image generation",
-        "Unlimited chats",
-      ],
-    },
+    { id: "free" as Tier, name: "Stay free", price: "0", icon: Sparkles, perks: s.free_features },
+    { id: "premium" as Tier, name: s.premium_label, price: String(s.premium_price), icon: Crown, perks: s.premium_features },
+    { id: "platinum" as Tier, name: s.platinum_label, price: String(s.platinum_price), icon: Gem, perks: s.platinum_features },
   ];
 
   return (
