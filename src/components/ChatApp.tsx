@@ -580,7 +580,7 @@ export default function ChatApp() {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="rounded-full overflow-hidden ring-2 ring-primary/40 hover:ring-primary transition h-9 w-9 flex items-center justify-center bg-card">
+                <button className={`rounded-full overflow-hidden transition h-9 w-9 flex items-center justify-center ${settings.logo_ring ? "ring-2 ring-primary/40 hover:ring-primary bg-card" : ""}`}>
                   <XLogo className="h-7 w-7 object-contain" />
                 </button>
               </DropdownMenuTrigger>
