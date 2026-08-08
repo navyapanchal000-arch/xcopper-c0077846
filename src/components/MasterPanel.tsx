@@ -33,12 +33,24 @@ function MasterBody({ open }: { open: boolean }) {
   const [logo, setLogo] = useState(settings.logo_url || "");
   const [premium, setPremium] = useState(String(settings.premium_price));
   const [platinum, setPlatinum] = useState(String(settings.platinum_price));
+  const [ring, setRing] = useState(settings.logo_ring);
+  const [premiumLabel, setPremiumLabel] = useState(settings.premium_label);
+  const [platinumLabel, setPlatinumLabel] = useState(settings.platinum_label);
+  const [freeFeat, setFreeFeat] = useState(settings.free_features.join("\n"));
+  const [premiumFeat, setPremiumFeat] = useState(settings.premium_features.join("\n"));
+  const [platinumFeat, setPlatinumFeat] = useState(settings.platinum_features.join("\n"));
 
   useEffect(() => {
     setName(settings.ai_name);
     setLogo(settings.logo_url || "");
     setPremium(String(settings.premium_price));
     setPlatinum(String(settings.platinum_price));
+    setRing(settings.logo_ring);
+    setPremiumLabel(settings.premium_label);
+    setPlatinumLabel(settings.platinum_label);
+    setFreeFeat(settings.free_features.join("\n"));
+    setPremiumFeat(settings.premium_features.join("\n"));
+    setPlatinumFeat(settings.platinum_features.join("\n"));
   }, [settings]);
 
   const loadUsers = useCallback(async () => {
@@ -85,12 +97,20 @@ function MasterBody({ open }: { open: boolean }) {
     setSelected({ ...u, tier, tier_expires_at: expires });
   };
 
+  const lines = (v: string) => v.split("\n").map(l => l.trim()).filter(Boolean);
+
   const saveSettings = async () => {
     const { error } = await db().from("app_settings").update({
       ai_name: name || DEFAULT_SETTINGS.ai_name,
       logo_url: logo.trim() || null,
       premium_price: Number(premium) || 0,
       platinum_price: Number(platinum) || 0,
+      logo_ring: ring,
+      premium_label: premiumLabel || "Premium",
+      platinum_label: platinumLabel || "Platinum",
+      free_features: lines(freeFeat),
+      premium_features: lines(premiumFeat),
+      platinum_features: lines(platinumFeat),
       updated_at: new Date().toISOString(),
     }).eq("id", 1);
     if (error) { showAlert(error.message); return; }
@@ -190,6 +210,10 @@ function MasterBody({ open }: { open: boolean }) {
               <label className="text-sm font-medium mb-1 block">Logo image URL</label>
               <Input placeholder="https://... (leave empty for default logo)" value={logo} onChange={(e) => setLogo(e.target.value)} />
             </div>
+            <label className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+              <span className="text-sm font-medium">Circular ring around logo</span>
+              <input type="checkbox" className="h-4 w-4 accent-[oklch(0.68_0.13_45)]" checked={ring} onChange={(e) => setRing(e.target.checked)} />
+            </label>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium mb-1 block">Premium price</label>
@@ -198,6 +222,31 @@ function MasterBody({ open }: { open: boolean }) {
               <div>
                 <label className="text-sm font-medium mb-1 block">Platinum price</label>
                 <Input value={platinum} onChange={(e) => setPlatinum(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Premium plan name</label>
+                <Input value={premiumLabel} onChange={(e) => setPremiumLabel(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Platinum plan name</label>
+                <Input value={platinumLabel} onChange={(e) => setPlatinumLabel(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">Plan features — one line per feature.</p>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Free features</label>
+                <textarea className="w-full min-h-24 rounded-md border border-border bg-input px-3 py-2 text-sm" value={freeFeat} onChange={(e) => setFreeFeat(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Premium features</label>
+                <textarea className="w-full min-h-24 rounded-md border border-border bg-input px-3 py-2 text-sm" value={premiumFeat} onChange={(e) => setPremiumFeat(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Platinum features</label>
+                <textarea className="w-full min-h-24 rounded-md border border-border bg-input px-3 py-2 text-sm" value={platinumFeat} onChange={(e) => setPlatinumFeat(e.target.value)} />
               </div>
             </div>
             <Button className="w-full" onClick={saveSettings}>Save changes</Button>

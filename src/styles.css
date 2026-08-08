@@ -147,3 +147,17 @@
     color: var(--color-foreground);
   }
 }
+
+/* --- Copper edge wave FX (borders only, never the center) --- */
+@keyframes copper-wave-x {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes copper-wave-y {
+  0% { background-position: 50% 0%; }
+  100% { background-position: 50% 200%; }
+}
+@keyframes copper-edge-breathe {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
