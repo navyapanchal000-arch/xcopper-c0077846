@@ -18,27 +18,45 @@ export type Database = {
         Row: {
           ai_name: string
           currency: string
+          free_features: string[]
           id: number
+          logo_ring: boolean
           logo_url: string | null
+          platinum_features: string[]
+          platinum_label: string
           platinum_price: number
+          premium_features: string[]
+          premium_label: string
           premium_price: number
           updated_at: string
         }
         Insert: {
           ai_name?: string
           currency?: string
+          free_features?: string[]
           id?: number
+          logo_ring?: boolean
           logo_url?: string | null
+          platinum_features?: string[]
+          platinum_label?: string
           platinum_price?: number
+          premium_features?: string[]
+          premium_label?: string
           premium_price?: number
           updated_at?: string
         }
         Update: {
           ai_name?: string
           currency?: string
+          free_features?: string[]
           id?: number
+          logo_ring?: boolean
           logo_url?: string | null
+          platinum_features?: string[]
+          platinum_label?: string
           platinum_price?: number
+          premium_features?: string[]
+          premium_label?: string
           premium_price?: number
           updated_at?: string
         }
