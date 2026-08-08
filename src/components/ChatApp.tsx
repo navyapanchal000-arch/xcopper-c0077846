@@ -918,7 +918,12 @@ function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
       else { showAlert("Check your email to verify your account."); onClose(); }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) showAlert(error.message);
+      if (error) {
+        const m = error.message.toLowerCase();
+        if (m.includes("invalid login") || m.includes("credential") || m.includes("password"))
+          showAlert("The password you entered is not correct. Please try again.", "Incorrect Password");
+        else showAlert(error.message);
+      }
       else { showAlert("Signed in"); onClose(); }
     }
     setBusy(false);
