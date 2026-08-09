@@ -113,7 +113,6 @@ export default function ChatApp() {
   const [showMaster, setShowMaster] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
   const [genImage, setGenImage] = useState(false);
-  const [genLeft, setGenLeft] = useState(0);
   const [splash, setSplash] = useState(true);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
     if (typeof window === "undefined") return "female";
