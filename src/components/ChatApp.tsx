@@ -1065,11 +1065,23 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   const startCamera = async (mode: "user" | "environment" = facing) => {
     try {
       streamRef.current?.getTracks().forEach(t => t.stop());
+      // Prefer the phone's PRIMARY (main) camera; avoid ultra-wide / telephoto lenses.
+      let deviceId: string | undefined;
+      try {
+        // Permission is needed before labels are exposed.
+        const probe = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: mode } }, audio: false });
+        probe.getTracks().forEach(t => t.stop());
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter(d => d.kind === "videoinput");
+        const wanted = mode === "environment" ? /back|rear|environment/i : /front|user|face/i;
+        const bad = /ultra|wide|tele|zoom|depth|macro|monochrome|0\.5|2x|3x|5x/i;
+        const facingCams = cams.filter(d => wanted.test(d.label));
+        const pool = facingCams.length ? facingCams : cams;
+        deviceId = (pool.find(d => !bad.test(d.label)) || pool[0])?.deviceId;
+      } catch {}
       const s = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: mode },
-          // Use the NORMAL lens — deprioritise wide/ultra-wide (focalLength < 18mm)
-          focalLength: { ideal: 28, min: 20, max: 35 },
+          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: mode } }),
           width: { ideal: 1280 },
           height: { ideal: 720 },
         } as MediaTrackConstraints,
