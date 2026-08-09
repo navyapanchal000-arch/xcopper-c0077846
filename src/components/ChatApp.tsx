@@ -313,6 +313,17 @@ export default function ChatApp() {
     // ---- Image generation flow (tier-based delivery time) ----
     if (attachments.length === 0 && isImageRequest(text)) {
       const targetSecs = tier === "platinum" ? 5 : tier === "premium" ? 7 : 9;
+      const usedKey = "xcopper_image_count";
+      const used = Number((typeof window !== "undefined" && localStorage.getItem(usedKey)) || 0);
+      if (used >= 5) {
+        const msgsLimit = [...active.messages, userMsg];
+        const limitReply: Msg = { role: "assistant", content: "First you take the Premium" };
+        const limitTitle = active.messages.length === 0 ? (text.slice(0, 40) || "New chat") : active.title;
+        updateActive(c => ({ ...c, title: limitTitle, messages: [...msgsLimit, limitReply] }));
+        persistActive({ id: activeId, title: limitTitle, messages: [...msgsLimit, limitReply] });
+        setInput("");
+        return;
+      }
       const startedAt = Date.now();
       const msgs = [...active.messages, userMsg];
       const title = active.messages.length === 0 ? (text.slice(0, 40) || "New chat") : active.title;
@@ -320,11 +331,6 @@ export default function ChatApp() {
       setInput("");
       setIsLoading(true);
       setGenImage(true);
-      setGenLeft(targetSecs);
-      const ticker = setInterval(() => {
-        const left = targetSecs - Math.floor((Date.now() - startedAt) / 1000);
-        setGenLeft(left > 0 ? left : 0);
-      }, 250);
       try {
         const r = await fetch("/api/generate-image", {
           method: "POST",
@@ -343,12 +349,11 @@ export default function ChatApp() {
         };
         updateActive(c => ({ ...c, messages: [...msgs, done] }));
         persistActive({ id: activeId, title, messages: [...msgs, done] });
+        try { localStorage.setItem(usedKey, String(used + 1)); } catch {}
       } catch {
         showAlert("Image could not be generated. Please try again.");
         updateActive(c => ({ ...c, messages: msgs }));
       } finally {
-        clearInterval(ticker);
-        setGenLeft(0);
         setGenImage(false);
         setIsLoading(false);
       }
