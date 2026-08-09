@@ -745,7 +745,7 @@ export default function ChatApp() {
           </div>
         </div>
 
-        <input ref={fileRef} type="file" hidden onChange={e => onFile(e, "file")} />
+        <input ref={fileRef} type="file" accept="image/*,application/pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx,video/*" hidden onChange={e => onFile(e, "file")} />
         <input ref={imgRef} type="file" accept="image/*" hidden onChange={e => onFile(e, "image")} />
         <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={e => onFile(e, "camera")} />
       </main>
