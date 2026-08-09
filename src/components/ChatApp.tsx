@@ -1062,7 +1062,16 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   const startCamera = async (mode: "user" | "environment" = facing) => {
     try {
       streamRef.current?.getTracks().forEach(t => t.stop());
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: mode }, audio: false });
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: mode },
+          // Use the NORMAL lens — deprioritise wide/ultra-wide (focalLength < 18mm)
+          focalLength: { ideal: 28, min: 20, max: 35 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        } as MediaTrackConstraints,
+        audio: false,
+      });
       streamRef.current = s;
       if (videoRef.current) { videoRef.current.srcObject = s; await videoRef.current.play(); }
       setCamOn(true);
