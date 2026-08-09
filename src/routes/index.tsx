@@ -7,7 +7,7 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "X COPPER – AI Assistant" },
       { name: "description", content: "X COPPER: a fast, beautiful AI assistant. Chat, voice, web search, and live mode." },
-      { name: "google-site-verification", content: "fX_Y5D4ay6DYtR0kkUL4vL7PGjeGkr8Be2vFRaw3GvQ" },
+      { name: "google-site-verification", content: "fx_YSO4ay6DYtR0kkUi4vL7PGjeGkrBBe2vFRaw3GvQ" },
     ],
   }),
 });
