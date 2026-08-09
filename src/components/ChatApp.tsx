@@ -113,7 +113,6 @@ export default function ChatApp() {
   const [showMaster, setShowMaster] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
   const [genImage, setGenImage] = useState(false);
-  const [genLeft, setGenLeft] = useState(0);
   const [splash, setSplash] = useState(true);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
     if (typeof window === "undefined") return "female";
@@ -313,6 +312,17 @@ export default function ChatApp() {
     // ---- Image generation flow (tier-based delivery time) ----
     if (attachments.length === 0 && isImageRequest(text)) {
       const targetSecs = tier === "platinum" ? 5 : tier === "premium" ? 7 : 9;
+      const usedKey = "xcopper_image_count";
+      const used = Number((typeof window !== "undefined" && localStorage.getItem(usedKey)) || 0);
+      if (used >= 5) {
+        const msgsLimit = [...active.messages, userMsg];
+        const limitReply: Msg = { role: "assistant", content: "First you take the Premium" };
+        const limitTitle = active.messages.length === 0 ? (text.slice(0, 40) || "New chat") : active.title;
+        updateActive(c => ({ ...c, title: limitTitle, messages: [...msgsLimit, limitReply] }));
+        persistActive({ id: activeId, title: limitTitle, messages: [...msgsLimit, limitReply] });
+        setInput("");
+        return;
+      }
       const startedAt = Date.now();
       const msgs = [...active.messages, userMsg];
       const title = active.messages.length === 0 ? (text.slice(0, 40) || "New chat") : active.title;
@@ -320,11 +330,6 @@ export default function ChatApp() {
       setInput("");
       setIsLoading(true);
       setGenImage(true);
-      setGenLeft(targetSecs);
-      const ticker = setInterval(() => {
-        const left = targetSecs - Math.floor((Date.now() - startedAt) / 1000);
-        setGenLeft(left > 0 ? left : 0);
-      }, 250);
       try {
         const r = await fetch("/api/generate-image", {
           method: "POST",
@@ -343,12 +348,11 @@ export default function ChatApp() {
         };
         updateActive(c => ({ ...c, messages: [...msgs, done] }));
         persistActive({ id: activeId, title, messages: [...msgs, done] });
+        try { localStorage.setItem(usedKey, String(used + 1)); } catch {}
       } catch {
         showAlert("Image could not be generated. Please try again.");
         updateActive(c => ({ ...c, messages: msgs }));
       } finally {
-        clearInterval(ticker);
-        setGenLeft(0);
         setGenImage(false);
         setIsLoading(false);
       }
@@ -656,7 +660,6 @@ export default function ChatApp() {
                           <span className="flex items-center gap-2">
                             <XLogo className="h-5 w-5 animate-spin" />
                             {m.content}
-                            <span className="text-primary font-semibold tabular-nums">{genLeft}s</span>
                           </span>
                         ) : (
                           <ReactMarkdown>{m.content}</ReactMarkdown>
@@ -1062,11 +1065,23 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
   const startCamera = async (mode: "user" | "environment" = facing) => {
     try {
       streamRef.current?.getTracks().forEach(t => t.stop());
+      // Prefer the phone's PRIMARY (main) camera; avoid ultra-wide / telephoto lenses.
+      let deviceId: string | undefined;
+      try {
+        // Permission is needed before labels are exposed.
+        const probe = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: mode } }, audio: false });
+        probe.getTracks().forEach(t => t.stop());
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter(d => d.kind === "videoinput");
+        const wanted = mode === "environment" ? /back|rear|environment/i : /front|user|face/i;
+        const bad = /ultra|wide|tele|zoom|depth|macro|monochrome|0\.5|2x|3x|5x/i;
+        const facingCams = cams.filter(d => wanted.test(d.label));
+        const pool = facingCams.length ? facingCams : cams;
+        deviceId = (pool.find(d => !bad.test(d.label)) || pool[0])?.deviceId;
+      } catch {}
       const s = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: mode },
-          // Use the NORMAL lens — deprioritise wide/ultra-wide (focalLength < 18mm)
-          focalLength: { ideal: 28, min: 20, max: 35 },
+          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: mode } }),
           width: { ideal: 1280 },
           height: { ideal: 720 },
         } as MediaTrackConstraints,
