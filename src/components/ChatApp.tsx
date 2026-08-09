@@ -1262,43 +1262,46 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
         </div>
       </div>
 
-      <div className="shrink-0 flex items-center justify-center gap-3 py-5 bg-black">
+      <div className="shrink-0 flex items-center justify-start gap-3 px-5 py-5 bg-black">
         <button
-          onClick={() => { if (listening) stop(); setMicOn(m => !m); }}
+          onClick={camOn ? stopCamera : () => startCamera()}
+          className={`h-12 w-12 rounded-full flex items-center justify-center transition ${camOn ? "bg-primary/15 text-primary ring-2 ring-primary" : "bg-secondary text-foreground"}`}
+          title="Camera"
+        >
+          {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+        </button>
+        <button
+          onClick={screenOn ? stopScreen : startScreen}
+          className={`h-12 w-12 rounded-full flex items-center justify-center transition ${screenOn ? "bg-primary/15 text-primary ring-2 ring-primary" : "bg-secondary text-foreground"}`}
+          title="Share screen"
+        >
+          <MonitorUp className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => {
+            if (micOn) { if (listening) stop(); setMicOn(false); return; }
+            setMicOn(true);
+            start();
+          }}
           className={`h-12 w-12 rounded-full flex items-center justify-center transition ${
             micOn
               ? "bg-primary/15 text-primary ring-2 ring-primary shadow-[0_0_18px_-2px_oklch(0.68_0.13_45/0.8)]"
               : "bg-secondary/40 text-muted-foreground/70"
           }`}
-          title={micOn ? "Mic on — you can speak" : "Mic off — audio input disabled"}
+          title={micOn ? "Mic on — speak freely" : "Mic off — muted"}
         >
           {micOn
             ? <Mic className="h-6 w-6" strokeWidth={3} />
             : <MicOff className="h-5 w-5" strokeWidth={1.25} />}
         </button>
         <button
-          onClick={camOn ? stopCamera : () => startCamera()}
-          className="h-12 w-12 rounded-full bg-secondary text-foreground flex items-center justify-center"
-          title="Camera"
+          onClick={() => { if (listening) stop(); showAlert("Hand raised — X COPPER is listening for your turn."); }}
+          className="h-12 w-12 rounded-full flex items-center justify-center bg-[#ff1f1f] text-white font-bold shadow-[0_0_20px_-4px_#ff1f1f] ring-2 ring-[#ff5252]"
+          title="Hand up"
         >
-          {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+          <Hand className="h-6 w-6" strokeWidth={3} />
         </button>
-        <button
-          onClick={listening ? stop : () => { if (!micOn) { showAlert("Turn the mic on to talk to X COPPER Live."); return; } start(); }}
-          className={`relative h-20 w-20 rounded-full flex items-center justify-center transition ${listening ? "animate-pulse" : ""} ${micOn ? "" : "opacity-40"}`}
-          style={{ background: "var(--gradient-copper)" }}
-          title={micOn ? "Talk" : "Mic is off"}
-        >
-          <Mic className="h-8 w-8 text-background" strokeWidth={micOn ? 3 : 1.5} />
-        </button>
-        <button
-          onClick={screenOn ? stopScreen : startScreen}
-          className={`h-12 w-12 rounded-full flex items-center justify-center ${screenOn ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}
-          title="Share screen"
-        >
-          <MonitorUp className="h-5 w-5" />
-        </button>
-        <button onClick={onClose} className="h-12 w-12 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center" title="End">
+        <button onClick={onClose} className="ml-auto h-12 w-12 rounded-full bg-secondary text-foreground flex items-center justify-center" title="End">
           <X className="h-5 w-5" />
         </button>
       </div>
