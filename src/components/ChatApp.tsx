@@ -5,7 +5,7 @@ import {
   MessageSquare, Settings, MoreVertical, Radio, X, Square, Camera, FileUp, Video, VideoOff,
   History, LogIn, LogOut, RefreshCw, Trash2, User as UserIcon, Check, Search, Eye, EyeOff,
   Volume2, VolumeX, Wand2, Code2, GraduationCap, PenLine, Languages, Lightbulb, Sigma, Sparkles,
-  ShieldCheck, Crown, MicOff, MonitorUp,
+  ShieldCheck, Crown, MicOff, MonitorUp, Hand,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -113,6 +113,8 @@ export default function ChatApp() {
   const [showMaster, setShowMaster] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
   const [genImage, setGenImage] = useState(false);
+  const [genLeft, setGenLeft] = useState(0);
+  const [splash, setSplash] = useState(true);
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => {
     if (typeof window === "undefined") return "female";
     const saved = localStorage.getItem("xcopper_voice_mode");
@@ -308,14 +310,21 @@ export default function ChatApp() {
       attachments: attachments.map(a => ({ name: a.name, type: a.type, url: a.data })),
     };
 
-    // ---- Image generation flow ----
+    // ---- Image generation flow (tier-based delivery time) ----
     if (attachments.length === 0 && isImageRequest(text)) {
+      const targetSecs = tier === "platinum" ? 5 : tier === "premium" ? 7 : 9;
+      const startedAt = Date.now();
       const msgs = [...active.messages, userMsg];
       const title = active.messages.length === 0 ? (text.slice(0, 40) || "New chat") : active.title;
       updateActive(c => ({ ...c, title, messages: [...msgs, { role: "assistant", content: "Your X COPPER is making your image." }] }));
       setInput("");
       setIsLoading(true);
       setGenImage(true);
+      setGenLeft(targetSecs);
+      const ticker = setInterval(() => {
+        const left = targetSecs - Math.floor((Date.now() - startedAt) / 1000);
+        setGenLeft(left > 0 ? left : 0);
+      }, 250);
       try {
         const r = await fetch("/api/generate-image", {
           method: "POST",
@@ -324,6 +333,9 @@ export default function ChatApp() {
         });
         const j = await r.json();
         if (!r.ok || !j.image) throw new Error(j.error || "failed");
+        // Render at exactly the tier's delivery time.
+        const wait = targetSecs * 1000 - (Date.now() - startedAt);
+        if (wait > 0) await new Promise(res => setTimeout(res, wait));
         const done: Msg = {
           role: "assistant",
           content: "Here is your image.",
@@ -335,6 +347,8 @@ export default function ChatApp() {
         showAlert("Image could not be generated. Please try again.");
         updateActive(c => ({ ...c, messages: msgs }));
       } finally {
+        clearInterval(ticker);
+        setGenLeft(0);
         setGenImage(false);
         setIsLoading(false);
       }
@@ -482,13 +496,25 @@ export default function ChatApp() {
 
   const empty = active.messages.length === 0;
 
+  useEffect(() => {
+    const t = setTimeout(() => setSplash(false), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const Splash = splash ? (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black transition-opacity duration-700">
+      <XLogo className="h-32 w-32 animate-in fade-in zoom-in-95 duration-700" />
+    </div>
+  ) : null;
+
   // Master user gets their own full console — no chat, no AI.
   if (isMaster) {
-    return <MasterConsole email={user?.email} onSignOut={() => { supabase.auth.signOut(); }} />;
+    return <>{Splash}<MasterConsole email={user?.email} onSignOut={() => { supabase.auth.signOut(); }} /></>;
   }
 
   return (
     <div className="flex h-screen bg-background text-foreground">
+      {Splash}
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar">
         <div className="p-3">
           <Button onClick={newChat} variant="outline" className="w-full justify-start gap-2 border-border bg-transparent hover:bg-sidebar-accent">
@@ -605,7 +631,7 @@ export default function ChatApp() {
               <h1 className="text-4xl md:text-5xl font-bold tracking-wide text-transparent bg-clip-text" style={{ backgroundImage: "var(--gradient-copper)" }}>
                 {settings.ai_name}
               </h1>
-              <p className="mt-3 text-muted-foreground text-sm">Ask anything. Fast answers powered by AI.</p>
+              <p className="mt-3 text-muted-foreground text-sm tracking-wide">by Navya Panchal</p>
             </div>
           ) : (
             <div className="max-w-3xl mx-auto py-6 px-4 space-y-6">
@@ -630,6 +656,7 @@ export default function ChatApp() {
                           <span className="flex items-center gap-2">
                             <XLogo className="h-5 w-5 animate-spin" />
                             {m.content}
+                            <span className="text-primary font-semibold tabular-nums">{genLeft}s</span>
                           </span>
                         ) : (
                           <ReactMarkdown>{m.content}</ReactMarkdown>
@@ -691,24 +718,18 @@ export default function ChatApp() {
               </div>
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-0.5">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach">
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-44 p-1">
-                      <button className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent" onClick={() => fileRef.current?.click()}>
-                        <FileUp className="h-4 w-4" /> Files
-                      </button>
-                      <button className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent" onClick={() => imgRef.current?.click()}>
-                        <ImageIcon className="h-4 w-4" /> Photo / Gallery
-                      </button>
-                      <button className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent" onClick={() => camRef.current?.click()}>
-                        <Camera className="h-4 w-4" /> Camera
-                      </button>
-                    </PopoverContent>
-                  </Popover>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 text-primary"
+                    title="Attach photos, documents or PDFs"
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-9 w-9" title="Camera" onClick={() => camRef.current?.click()}>
+                    <Camera className="h-4 w-4" />
+                  </Button>
                   <Button size="icon" variant={useWebSearch ? "default" : "ghost"} title="Search the web"
                     className={`h-9 w-9 ${useWebSearch ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
                     onClick={() => setUseWebSearch(v => !v)}>
@@ -736,7 +757,7 @@ export default function ChatApp() {
           </div>
         </div>
 
-        <input ref={fileRef} type="file" hidden onChange={e => onFile(e, "file")} />
+        <input ref={fileRef} type="file" accept="image/*,application/pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx,video/*" hidden onChange={e => onFile(e, "file")} />
         <input ref={imgRef} type="file" accept="image/*" hidden onChange={e => onFile(e, "image")} />
         <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={e => onFile(e, "camera")} />
       </main>
@@ -1241,43 +1262,46 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
         </div>
       </div>
 
-      <div className="shrink-0 flex items-center justify-center gap-3 py-5 bg-black">
+      <div className="shrink-0 flex items-center justify-start gap-3 px-5 py-5 bg-black">
         <button
-          onClick={() => { if (listening) stop(); setMicOn(m => !m); }}
+          onClick={camOn ? stopCamera : () => startCamera()}
+          className={`h-12 w-12 rounded-full flex items-center justify-center transition ${camOn ? "bg-primary/15 text-primary ring-2 ring-primary" : "bg-secondary text-foreground"}`}
+          title="Camera"
+        >
+          {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+        </button>
+        <button
+          onClick={screenOn ? stopScreen : startScreen}
+          className={`h-12 w-12 rounded-full flex items-center justify-center transition ${screenOn ? "bg-primary/15 text-primary ring-2 ring-primary" : "bg-secondary text-foreground"}`}
+          title="Share screen"
+        >
+          <MonitorUp className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => {
+            if (micOn) { if (listening) stop(); setMicOn(false); return; }
+            setMicOn(true);
+            start();
+          }}
           className={`h-12 w-12 rounded-full flex items-center justify-center transition ${
             micOn
               ? "bg-primary/15 text-primary ring-2 ring-primary shadow-[0_0_18px_-2px_oklch(0.68_0.13_45/0.8)]"
               : "bg-secondary/40 text-muted-foreground/70"
           }`}
-          title={micOn ? "Mic on — you can speak" : "Mic off — audio input disabled"}
+          title={micOn ? "Mic on — speak freely" : "Mic off — muted"}
         >
           {micOn
             ? <Mic className="h-6 w-6" strokeWidth={3} />
             : <MicOff className="h-5 w-5" strokeWidth={1.25} />}
         </button>
         <button
-          onClick={camOn ? stopCamera : () => startCamera()}
-          className="h-12 w-12 rounded-full bg-secondary text-foreground flex items-center justify-center"
-          title="Camera"
+          onClick={() => { if (listening) stop(); showAlert("Hand raised — X COPPER is listening for your turn."); }}
+          className="h-12 w-12 rounded-full flex items-center justify-center bg-[#ff1f1f] text-white font-bold shadow-[0_0_20px_-4px_#ff1f1f] ring-2 ring-[#ff5252]"
+          title="Hand up"
         >
-          {camOn ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+          <Hand className="h-6 w-6" strokeWidth={3} />
         </button>
-        <button
-          onClick={listening ? stop : () => { if (!micOn) { showAlert("Turn the mic on to talk to X COPPER Live."); return; } start(); }}
-          className={`relative h-20 w-20 rounded-full flex items-center justify-center transition ${listening ? "animate-pulse" : ""} ${micOn ? "" : "opacity-40"}`}
-          style={{ background: "var(--gradient-copper)" }}
-          title={micOn ? "Talk" : "Mic is off"}
-        >
-          <Mic className="h-8 w-8 text-background" strokeWidth={micOn ? 3 : 1.5} />
-        </button>
-        <button
-          onClick={screenOn ? stopScreen : startScreen}
-          className={`h-12 w-12 rounded-full flex items-center justify-center ${screenOn ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}
-          title="Share screen"
-        >
-          <MonitorUp className="h-5 w-5" />
-        </button>
-        <button onClick={onClose} className="h-12 w-12 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center" title="End">
+        <button onClick={onClose} className="ml-auto h-12 w-12 rounded-full bg-secondary text-foreground flex items-center justify-center" title="End">
           <X className="h-5 w-5" />
         </button>
       </div>
