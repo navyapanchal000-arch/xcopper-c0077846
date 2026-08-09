@@ -644,6 +644,7 @@ export default function ChatApp() {
                           <span className="flex items-center gap-2">
                             <XLogo className="h-5 w-5 animate-spin" />
                             {m.content}
+                            <span className="text-primary font-semibold tabular-nums">{genLeft}s</span>
                           </span>
                         ) : (
                           <ReactMarkdown>{m.content}</ReactMarkdown>
