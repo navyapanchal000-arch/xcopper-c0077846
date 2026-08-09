@@ -496,13 +496,25 @@ export default function ChatApp() {
 
   const empty = active.messages.length === 0;
 
+  useEffect(() => {
+    const t = setTimeout(() => setSplash(false), 2000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const Splash = splash ? (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black transition-opacity duration-700">
+      <XLogo className="h-32 w-32 animate-in fade-in zoom-in-95 duration-700" />
+    </div>
+  ) : null;
+
   // Master user gets their own full console — no chat, no AI.
   if (isMaster) {
-    return <MasterConsole email={user?.email} onSignOut={() => { supabase.auth.signOut(); }} />;
+    return <>{Splash}<MasterConsole email={user?.email} onSignOut={() => { supabase.auth.signOut(); }} /></>;
   }
 
   return (
     <div className="flex h-screen bg-background text-foreground">
+      {Splash}
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-sidebar">
         <div className="p-3">
           <Button onClick={newChat} variant="outline" className="w-full justify-start gap-2 border-border bg-transparent hover:bg-sidebar-accent">
