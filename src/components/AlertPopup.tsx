@@ -24,7 +24,8 @@ export function AlertHost() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-md p-6 animate-in fade-in duration-200"
+      className="fixed inset-0 flex items-center justify-center bg-black/75 backdrop-blur-md p-6 animate-in fade-in duration-200"
+      style={{ zIndex: 2147483000, pointerEvents: "auto" }}
       onClick={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
     >
@@ -39,9 +40,10 @@ export function AlertHost() {
         )}
         <p className="text-sm text-foreground">{current.message}</p>
         <button
-          onClick={() => setQueue((q) => q.slice(1))}
-          className="mt-5 w-full rounded-full py-2 text-sm font-semibold text-background"
-          style={{ background: "var(--gradient-copper)" }}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setQueue((q) => q.slice(1)); }}
+          className="mt-5 w-full rounded-full py-2 text-sm font-semibold text-background cursor-pointer"
+          style={{ background: "var(--gradient-copper)", pointerEvents: "auto" }}
         >
           OK
         </button>
