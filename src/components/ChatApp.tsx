@@ -1069,7 +1069,7 @@ function LiveMode({ open, onClose, language, voiceMode, voices, selectedAI }: { 
           focalLength: { ideal: 28, min: 20, max: 35 },
           width: { ideal: 1280 },
           height: { ideal: 720 },
-        },
+        } as MediaTrackConstraints,
         audio: false,
       });
       streamRef.current = s;
