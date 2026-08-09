@@ -619,7 +619,7 @@ export default function ChatApp() {
               <h1 className="text-4xl md:text-5xl font-bold tracking-wide text-transparent bg-clip-text" style={{ backgroundImage: "var(--gradient-copper)" }}>
                 {settings.ai_name}
               </h1>
-              <p className="mt-3 text-muted-foreground text-sm">Ask anything. Fast answers powered by AI.</p>
+              <p className="mt-3 text-muted-foreground text-sm tracking-wide">by Navya Panchal</p>
             </div>
           ) : (
             <div className="max-w-3xl mx-auto py-6 px-4 space-y-6">
