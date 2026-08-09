@@ -706,24 +706,18 @@ export default function ChatApp() {
               </div>
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-0.5">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-9 w-9" title="Attach">
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-44 p-1">
-                      <button className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent" onClick={() => fileRef.current?.click()}>
-                        <FileUp className="h-4 w-4" /> Files
-                      </button>
-                      <button className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent" onClick={() => imgRef.current?.click()}>
-                        <ImageIcon className="h-4 w-4" /> Photo / Gallery
-                      </button>
-                      <button className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent" onClick={() => camRef.current?.click()}>
-                        <Camera className="h-4 w-4" /> Camera
-                      </button>
-                    </PopoverContent>
-                  </Popover>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 text-primary"
+                    title="Attach photos, documents or PDFs"
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-9 w-9" title="Camera" onClick={() => camRef.current?.click()}>
+                    <Camera className="h-4 w-4" />
+                  </Button>
                   <Button size="icon" variant={useWebSearch ? "default" : "ghost"} title="Search the web"
                     className={`h-9 w-9 ${useWebSearch ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
                     onClick={() => setUseWebSearch(v => !v)}>
