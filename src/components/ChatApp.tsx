@@ -310,14 +310,21 @@ export default function ChatApp() {
       attachments: attachments.map(a => ({ name: a.name, type: a.type, url: a.data })),
     };
 
-    // ---- Image generation flow ----
+    // ---- Image generation flow (tier-based delivery time) ----
     if (attachments.length === 0 && isImageRequest(text)) {
+      const targetSecs = tier === "platinum" ? 5 : tier === "premium" ? 7 : 9;
+      const startedAt = Date.now();
       const msgs = [...active.messages, userMsg];
       const title = active.messages.length === 0 ? (text.slice(0, 40) || "New chat") : active.title;
       updateActive(c => ({ ...c, title, messages: [...msgs, { role: "assistant", content: "Your X COPPER is making your image." }] }));
       setInput("");
       setIsLoading(true);
       setGenImage(true);
+      setGenLeft(targetSecs);
+      const ticker = setInterval(() => {
+        const left = targetSecs - Math.floor((Date.now() - startedAt) / 1000);
+        setGenLeft(left > 0 ? left : 0);
+      }, 250);
       try {
         const r = await fetch("/api/generate-image", {
           method: "POST",
@@ -326,6 +333,9 @@ export default function ChatApp() {
         });
         const j = await r.json();
         if (!r.ok || !j.image) throw new Error(j.error || "failed");
+        // Render at exactly the tier's delivery time.
+        const wait = targetSecs * 1000 - (Date.now() - startedAt);
+        if (wait > 0) await new Promise(res => setTimeout(res, wait));
         const done: Msg = {
           role: "assistant",
           content: "Here is your image.",
@@ -337,6 +347,8 @@ export default function ChatApp() {
         showAlert("Image could not be generated. Please try again.");
         updateActive(c => ({ ...c, messages: msgs }));
       } finally {
+        clearInterval(ticker);
+        setGenLeft(0);
         setGenImage(false);
         setIsLoading(false);
       }
