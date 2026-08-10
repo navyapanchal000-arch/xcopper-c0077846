@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import ChatApp from "@/components/ChatApp";
-
+if (typeof window !== 'undefined') {
+  const existingManifest = document.querySelector("link[rel*='manifest']");
+  if (!existingManifest) {
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = '/manifest.json';
+    document.head.appendChild(link);
+  }
+}
 export const Route = createFileRoute("/")({
   component: Index,
   head: () => ({
@@ -14,13 +22,4 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   return <ChatApp />;
-}
-if (typeof window !== 'undefined') {
-  const existingManifest = document.querySelector("link[rel*='manifest']");
-  if (!existingManifest) {
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = '/manifest.json';
-    document.head.appendChild(link);
-  }
 }
