@@ -34,6 +34,7 @@ export const Route = createRootRoute({
       { title: "X COPPER--Navya panchal" },
       { name: "description", content: "X COPPER — MADE BY NAVYA PANCHAL" },
       { name: "author", content: "Lovable" },
+      { name: "google-site-verification", content: "fx_YSO4ay6DYtR0kkUi4vL7PGjeGkrBBe2vFRaw3GvQ" },
       { property: "og:title", content: "X COPPER--Navya panchal" },
       { property: "og:description", content: "X COPPER — MADE BY NAVYA PANCHAL" },
       { property: "og:type", content: "website" },
